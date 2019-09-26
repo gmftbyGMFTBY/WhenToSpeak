@@ -105,6 +105,7 @@ venv.bak/
 
 *.txt
 *.csv
+*.tsv
 *.embed
 *.pkl
 *.pt
