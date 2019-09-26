@@ -75,7 +75,7 @@ def generate_vocab(files, vocab, cutoff=30000):
     words = words.most_common(cutoff)
     
     # special words
-    words.extend([('<sos>', 1), ('<eos>', 1), ('<unk>', 1), ('<pad>', 1)])
+    words.extend([('<sos>', 1), ('<eos>', 1), ('<unk>', 1), ('<pad>', 1), ('<silence>', 1)])
     w2idx = {item[0]:idx for idx, item in enumerate(words)}
     idx2w = [item[0] for item in words]
     

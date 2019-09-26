@@ -20,21 +20,28 @@ from utils import *
 from data_loader import *
 from model.seq2seq_attention import Seq2Seq
 from model.HRED import HRED
+from model.seq2seq_attention_cf import Seq2Seq_cf
 from model.layers import *
 
 
 def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad, 
-          grad_clip=10):
+          grad_clip=10, cf=False):
     # choose nll_loss for training the objective function
     net.train()
     total_loss, batch_num = 0.0, 0
     criterion = nn.NLLLoss(ignore_index=pad)
+    de_criterion = nn.BCELoss()
 
     pbar = tqdm(train_iter)
 
     for idx, batch in enumerate(pbar):
         # [turn, length, batch], [seq_len, batch] / [seq_len, batch], [seq_len, batch]
-        sbatch, tbatch, turn_lengths = batch
+        if cf:
+            # debatch: [batch,]
+            sbatch, tbatch, debatch, turn_lengths = batch
+        else:
+            sbatch, tbatch, turn_lengths = batch
+        
         batch_size = tbatch.shape[1]
         if batch_size == 1:
             # batchnorm will throw error when batch_size is 1
@@ -44,12 +51,20 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
 
         # [seq_len, batch, vocab_size]
         output = net(sbatch, tbatch, turn_lengths)
-        
-        loss = criterion(output[1:].view(-1, vocab_size),
-                         tbatch[1:].contiguous().view(-1))
-
-        # add train loss to the tensorfboard
-        writer.add_scalar(f'{writer_str}-Loss/train', loss, idx)
+        if cf:
+            output, de = output
+            de_loss = de_criterion(de, debatch)
+            lm_loss = criterion(output[1:].view(-1, vocab_size),
+                                tbatch[1:].contiguous().view(-1))
+            loss = 0.75 * de_loss + 0.25 * lm_loss
+            writer.add_scalar(f'{writer_str}-DeLoss/train', de_loss, idx)
+            writer.add_scalar(f'{writer_str}-LMLoss/train', lm_loss, idx)
+            writer.add_scalar(f'{writer_str}-Loss/train', loss, idx)
+        else:
+            loss = criterion(output[1:].view(-1, vocab_size),
+                             tbatch[1:].contiguous().view(-1))
+            # add train loss to the tensorfboard
+            writer.add_scalar(f'{writer_str}-Loss/train', loss, idx)
 
         loss.backward()
         clip_grad_norm_(net.parameters(), grad_clip)
@@ -58,40 +73,56 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
         total_loss += loss.item()
         batch_num += 1
 
-        pbar.set_description(f'batch {batch_num}, training loss: {round(loss.item(), 4)}')
+        pbar.set_description(f'batch {batch_num}, training loss: {round(loss.item(), 4)}, lr: {round(optimizer.param_groups[0]["lr"], 10)}')
 
     # return avg loss
     return round(total_loss / batch_num, 4)
 
 
-def validation(data_iter, net, vocab_size, pad):
+def validation(data_iter, net, vocab_size, pad, cf=False):
     net.eval()
-    batch_num, total_loss = 0, 0.0
+    batch_num, total_loss, total_acc, total_num = 0, 0.0, 0, 0
     criterion = nn.NLLLoss(ignore_index=pad)
+    de_criterion = nn.BCELoss()
 
     pbar = tqdm(data_iter)
 
     for idx, batch in enumerate(pbar):
-        sbatch, tbatch, turn_lengths = batch
+        if cf:
+            sbatch, tbatch, debatch, turn_lengths = batch
+        else:
+            sbatch, tbatch, turn_lengths = batch
         batch_size = tbatch.shape[1]
         if batch_size == 1:
             continue
 
         output = net(sbatch, tbatch, turn_lengths)
-
-        loss = criterion(output[1:].view(-1, vocab_size),
-                         tbatch[1:].contiguous().view(-1))
-
+        if cf:
+            output, de = output
+            de_loss = de_criterion(de, debatch)
+            lm_loss = criterion(output[1:].view(-1, vocab_size),
+                                tbatch[1:].view(-1, vocab_size))
+            loss = 0.75 * de_loss + 0.25 * lm_loss
+            # accuracy of the decision output
+            # de: [batch]
+            de = (de > 0.5).long()
+            total_acc += torch.sum(de == debatch).item()
+            total_num += len(debatch)
+        else:
+            loss = criterion(output[1:].view(-1, vocab_size),
+                             tbatch[1:].contiguous().view(-1))
+        pbar.set_description(f'batch {idx}, dev/test loss: {round(loss.item(), 4)}')
         total_loss += loss.item()
         batch_num += 1
-        
-        pbar.set_description(f'batch {idx}, dev/test loss: {round(loss.item(), 4)}')
 
-    return round(total_loss / batch_num, 4)
+    if cf:
+        return round(total_loss / batch_num, 4), round(total_acc / total_num, 4)
+    else:
+        return round(total_loss / batch_num, 4)
 
 
-def test(data_iter, net, vocab_size, pad):
-    test_loss = validation(data_iter, net, vocab_size, pad)
+def test(data_iter, net, vocab_size, pad, cf=False):
+    test_loss = validation(data_iter, net, vocab_size, pad, cf=cf)
     return test_loss
 
 
@@ -118,6 +149,14 @@ def main(**kwargs):
                    kwargs['decoder_hidden'], teach_force=kwargs['teach_force'],
                    pad=tgt_w2idx['<pad>'], sos=tgt_w2idx['<sos>'],
                    dropout=kwargs['dropout'], utter_n_layer=kwargs['utter_n_layer'])
+    elif kwargs['model'] == 'seq2seq-cf':
+        net = Seq2Seq_cf(len(src_w2idx), kwargs['embed_size'], len(tgt_w2idx),
+                         kwargs['utter_hidden'], kwargs['decoder_hidden'], 
+                         teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
+                         sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'],
+                         utter_n_layer=kwargs['utter_n_layer'])
+    elif kwargs['model'] == 'hred-cf':
+        pass
     else:
         raise Exception('[!] Wrong model (seq2seq, hred, seq2seq-cf, hred-cf)')
 
@@ -164,8 +203,14 @@ def main(**kwargs):
         writer_str = f'{kwargs["model"]}-epoch-{epoch}'
         train(writer, writer_str, train_iter, net, optimizer, 
               len(tgt_w2idx), tgt_w2idx['<pad>'], 
-              grad_clip=kwargs['grad_clip'],)
-        val_loss = validation(dev_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'])
+              grad_clip=kwargs['grad_clip'], cf=kwargs['cf']==1)
+        if kwargs["cf"] == 1:
+            val_loss, val_acc = validation(dev_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], 
+                                           cf=kwargs["cf"]==1)
+            writer.add_scalar(f'{kwargs["model"]}-Acc/dev', val_acc, epoch)
+        else:
+            val_loss = validation(dev_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], 
+                                  cf=kwargs["cf"]==1)
         # add scalar to tensorboard
         writer.add_scalar(f'{kwargs["model"]}-Loss/dev', val_loss, epoch)
 
@@ -188,7 +233,7 @@ def main(**kwargs):
 
     # test
     load_best_model(kwargs['model'], net, threshold=kwargs['epoch_threshold'])
-    test_loss = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'])
+    test_loss = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs["cf"])
     print(f'Test loss: {test_loss}, test_ppl: {round(math.exp(test_loss), 4)}')
     writer.close()
 
@@ -229,6 +274,7 @@ if __name__ == "__main__":
                         help='layers of the utterance encoder')
     parser.add_argument('--dropout', type=float, default=0.5, help='dropout ratio')
     parser.add_argument('--hierarchical', type=int, default=1, help='Whether hierarchical architecture')
+    parser.add_argument('--cf', type=int, default=0, help='whether have the classification')
 
     args = parser.parse_args()
 

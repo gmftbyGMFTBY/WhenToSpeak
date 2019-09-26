@@ -52,7 +52,7 @@ def load_data_flatten(src, tgt, src_vocab, tgt_vocab, maxlen):
     def load_(data, vocab):
         d = []
         for example in data:
-            utterances = ' __eou__ '.join([i[1] for i in example])
+            utterances = ' <eou> '.join([i[1] for i in example])
             line = [vocab['<sos>']] + [vocab.get(w, vocab['<unk>']) for w in utterances.split()] + [vocab['<eos>']]
             if len(line) > maxlen:
                 line = [vocab['<sos>']] + line[-maxlen:]
@@ -169,6 +169,13 @@ def get_batch_data(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen):
         fidx = bidx
 
         yield sbatch, tbatch, turn_lengths
+
+
+def get_batch_data_cf():
+    pass
+
+def get_batch_data_cf_flatten():
+    pass
 
 
 if __name__ == "__main__":

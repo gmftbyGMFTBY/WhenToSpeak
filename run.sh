@@ -9,12 +9,16 @@ cuda=$3
 # hierarchical
 if [ $model = 'seq2seq' ]; then
     hierarchical=0
+    cf=0
 elif [ $model = 'seq2seq-cf' ]; then
     hierarchical=0
+    cf=1
 elif [ $model = 'hred' ]; then
     hierarchical=1
+    cf=0
 elif [ $model = 'hred-cf' ]; then
     hierarchical=1
+    cf=1
 fi
 
 # batch_size of hierarchical
@@ -23,7 +27,14 @@ if [ $hierarchical = 1 ]; then
     maxlen=50
 else
     batch_size=32
-    maxlen=120
+    maxlen=100
+fi
+
+# cf_check
+if [ $cf = 1 ]; then
+    cf_check="cf"
+else
+    cf_check="ncf"
 fi
 
 echo "========== $mode begin =========="
@@ -36,24 +47,24 @@ if [ $mode = 'train' ]; then
 
     # generate the src vocab
     python utils.py \
-        --file ./data/$model/src-train.pkl ./data/$model/src-dev.pkl \
+        --file ./data/$model/$cf_check/src-train.pkl ./data/$model/$cf_check/src-dev.pkl \
         --vocab ./processed/$model/iptvocab.pkl \
         --cutoff 50000
 
     # generate the tgt vocab
     python utils.py \
-        --file ./data/$model/tgt-train.pkl ./data/$model/tgt-dev.pkl \
+        --file ./data/$model/$cf_check/tgt-train.pkl ./data/$model/$cf_check/tgt-dev.pkl \
         --vocab ./processed/$model/optvocab.pkl \
         --cutoff 50000
 
     # train loop
     CUDA_VISIBLE_DEVICES="$cuda" python train.py \
-        --src_train ./data/$model/src-train.pkl \
-        --tgt_train ./data/$model/tgt-train.pkl \
-        --src_test ./data/$model/src-test.pkl \
-        --tgt_test ./data/$model/tgt-test.pkl \
-        --src_dev ./data/$model/src-dev.pkl \
-        --tgt_dev ./data/$model/tgt-dev.pkl \
+        --src_train ./data/$model/$cf_check/src-train.pkl \
+        --tgt_train ./data/$model/$cf_check/tgt-train.pkl \
+        --src_test ./data/$model/$cf_check/src-test.pkl \
+        --tgt_test ./data/$model/$cf_check/tgt-test.pkl \
+        --src_dev ./data/$model/$cf_check/src-dev.pkl \
+        --tgt_dev ./data/$model/$cf_check/tgt-dev.pkl \
         --epoch_threshold 0 \
         --lr 1e-3 \
         --batch_size $batch_size \
@@ -77,8 +88,8 @@ if [ $mode = 'train' ]; then
 
 elif [ $mode = 'translate' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
-        --src_test ./data/$model/src-test.pkl \
-        --tgt_test ./data/$model/tgt-test.pkl \
+        --src_test ./data/$model/$cf_check/src-test.pkl \
+        --tgt_test ./data/$model/$cf_check/tgt-test.pkl \
         --epoch_threshold 0 \
         --batch_size $batch_size \
         --model $model \
@@ -103,4 +114,4 @@ else
     echo "[!] Wrong mode for running the script"
 fi
 
-echo "========== $mode Done =========="
+echo "========== $mode done =========="

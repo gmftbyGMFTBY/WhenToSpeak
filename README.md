@@ -64,14 +64,14 @@ Evaluate the result of the translated utterances
 1. Automatic evaluation
 
 * Compare the BLEU4, BERTScore, Disctint-1, Distinct-2 score for all the models.
-
-Proposed classified methods need to be cascaded to calculate the BLEU4, BERTScore (the same format as the traditional models' result)
+    
+    Proposed classified methods need to be cascaded to calculate the BLEU4, BERTScore (the same format as the traditional models' result)
 
 * F1 metric for measuring the accuracy for the timing of the speaking, only for classified methods (seq2seq-cf, hred-cf, ...)
 
 2. Human judgments (engaging, ...)
-
-Invit the volunteer to chat with two models and score the models' performance accorading to the **Engaging**, **Fluent**, ...
+    
+    Invit the volunteer to chat with two models and score the models' performance accorading to the **Engaging**, **Fluent**, ...
 
 3. Graph ablation learning
 

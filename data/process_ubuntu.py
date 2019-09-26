@@ -34,17 +34,31 @@ def get_all_dialogues(path, turns_threshold=(5, 15)):
     return files
 
 
-def process_one_dialog(path):
+def process_one_dialog(path, cf):
     # only return the dialog that have two users
+    # cf: if 1, not combine; if 0, combine.
     with open(path) as f:
         f_csv = csv.reader(f, delimiter='\t')
         users, utterances = [], []
+        last_user, cache = None, []
         for line in f_csv:
             _, u1, u2, utterance = line
             if u1 and u1 not in users: users.append(u1)
             if u2 and u2 not in users: users.append(u2)
 
-            utterances.append((u1, utterance))
+            if cf == 0:
+                if not last_user or last_user == u1:
+                    last_user = u1
+                    cache.append(utterance)
+                else:
+                    uu = " <eou> ".join(cache)
+                    cache = [utterance]
+                    utterances.append((last_user, uu))
+                    last_user = u1
+            else:
+                utterances.append((u1, utterance))
+        if cf == 0 and cache:
+            utterances.append((last_user, " <eou> ".join(cache)))
 
         if len(users) != 2:
             return (users, utterances)
@@ -92,13 +106,14 @@ if __name__ == "__main__":
     parser.add_argument('--tgt_test', type=str, default='seq2seq/tgt-test.pkl')
     parser.add_argument('--src_dev', type=str, default='seq2seq/src-dev.pkl')
     parser.add_argument('--tgt_dev', type=str, default='seq2seq/tgt-dev.pkl')
+    parser.add_argument('--cf', type=int, default=0, help='whether have the classification')
     args = parser.parse_args()
 
     files = get_all_dialogues('./dialogs', turns_threshold=(args.low, args.high))
 
     dialogs = []
     for file in tqdm(files):
-        dialog = process_one_dialog(file)
+        dialog = process_one_dialog(file, args.cf)
         if dialog:
             dialogs.append(dialog)
     
