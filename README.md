@@ -74,7 +74,7 @@ Evaluate the result of the translated utterances
     
     Proposed classified methods need to be cascaded to calculate the BLEU4, BERTScore (the same format as the traditional models' result)
     
-    <table border="1" class="tg">
+    <table align="center">
       <tr>
         <th>Models</th>
         <th>BLEU4</th>
