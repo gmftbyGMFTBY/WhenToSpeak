@@ -15,6 +15,7 @@ Model architecture:
 3. numpy
 4. tqdm
 5. [BERTScore](https://github.com/Tiiiger/bert_score)
+6. nltk: word tokenize
 
 ## Dataset
 Ubuntu Dialogue v1, format:
@@ -37,6 +38,12 @@ Ubuntu Dialogue v1, format:
 3. w/o Dialogue-sequence
 
 ## How to use
+
+Generate the vocab of the dataset
+
+```python
+./run.sh vocab 0 0
+```
 
 Train the model (seq2seq / seq2seq-cf / hred / hred-cf):
 
@@ -66,15 +73,54 @@ Evaluate the result of the translated utterances
 * Compare the BLEU4, BERTScore, Disctint-1, Distinct-2 score for all the models.
     
     Proposed classified methods need to be cascaded to calculate the BLEU4, BERTScore (the same format as the traditional models' result)
+    
+    <table border="1" class="tg">
+      <tr>
+        <th>Models</th>
+        <th>BLEU4</th>
+        <th>Dist-1</th>
+        <th>Dist-2</th>
+        <th>BERTScore</th>
+      </tr>
+      <tr>
+        <td>seq2seq</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>hred</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>hred-cf</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>proposed</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    </table>
 
-* F1 metric for measuring the accuracy for the timing of the speaking, only for classified methods (seq2seq-cf, hred-cf, ...)
+
+* F1 metric for measuring the accuracy for the timing of the speaking, only for classified methods (hred-cf, ...)
 
 2. Human judgments (engaging, ...)
     
-    Invit the volunteer to chat with two models and score the models' performance accorading to the **Engaging**, **Fluent**, ...
+    Invit the volunteer to chat with these models (seq2seq, hred, seq2seq-cf, hred-cf,) and score the models' performance accorading to the **Engaging**, **Fluent**, ...
 
 3. Graph ablation learning
 
-* F1 accuracy of predicting the speaking timing
+* F1 accuracy of predicting the speaking timing (hred-cf,)
 * BLEU4, BERTScore, Distinct-1, Distinct-2
 

@@ -2,7 +2,7 @@
 # Author: GMFTBY
 # Time: 2019.9.25
 
-mode=$1
+mode=$1     # vocab, train, translate, eval
 model=$2
 cuda=$3
 
@@ -17,6 +17,9 @@ elif [ $model = 'hred' ]; then
     hierarchical=1
     cf=0
 elif [ $model = 'hred-cf' ]; then
+    hierarchical=1
+    cf=1
+else
     hierarchical=1
     cf=1
 fi
@@ -39,32 +42,33 @@ fi
 
 echo "========== $mode begin =========="
 
-if [ $mode = 'train' ]; then
-    # clear the ckpt, vocab, tensorboard cache
-    rm ./ckpt/$model/*
-    rm ./processed/$model/*
-    rm ./tblogs/$model/*
 
+if [ $mode = 'vocab' ]; then
     # generate the src vocab
     python utils.py \
-        --file ./data/$model/$cf_check/src-train.pkl ./data/$model/$cf_check/src-dev.pkl \
-        --vocab ./processed/$model/iptvocab.pkl \
+        --file ./data/cf/src-train.pkl ./data/cf/src-dev.pkl \
+        --vocab ./processed/iptvocab.pkl \
         --cutoff 50000
 
     # generate the tgt vocab
     python utils.py \
-        --file ./data/$model/$cf_check/tgt-train.pkl ./data/$model/$cf_check/tgt-dev.pkl \
-        --vocab ./processed/$model/optvocab.pkl \
+        --file ./data/cf/tgt-train.pkl ./data/cf/tgt-dev.pkl \
+        --vocab ./processed/optvocab.pkl \
         --cutoff 50000
 
+elif [ $mode = 'train' ]; then
+    # clear the ckpt, vocab, tensorboard cache
+    rm ./ckpt/$model/*
+    rm ./tblogs/$model/*
+    
     # train loop
     CUDA_VISIBLE_DEVICES="$cuda" python train.py \
-        --src_train ./data/$model/$cf_check/src-train.pkl \
-        --tgt_train ./data/$model/$cf_check/tgt-train.pkl \
-        --src_test ./data/$model/$cf_check/src-test.pkl \
-        --tgt_test ./data/$model/$cf_check/tgt-test.pkl \
-        --src_dev ./data/$model/$cf_check/src-dev.pkl \
-        --tgt_dev ./data/$model/$cf_check/tgt-dev.pkl \
+        --src_train ./data/$cf_check/src-train.pkl \
+        --tgt_train ./data/$cf_check/tgt-train.pkl \
+        --src_test ./data/$cf_check/src-test.pkl \
+        --tgt_test ./data/$cf_check/tgt-test.pkl \
+        --src_dev ./data/$cf_check/src-dev.pkl \
+        --tgt_dev ./data/$cf_check/tgt-dev.pkl \
         --epoch_threshold 0 \
         --lr 1e-3 \
         --batch_size $batch_size \
@@ -80,16 +84,18 @@ if [ $mode = 'train' ]; then
         --patience 10 \
         --grad_clip 3 \
         --epochs 50 \
-        --src_vocab ./processed/$model/iptvocab.pkl \
-        --tgt_vocab ./processed/$model/optvocab.pkl \
+        --src_vocab ./processed/iptvocab.pkl \
+        --tgt_vocab ./processed/optvocab.pkl \
         --maxlen $maxlen \
         --dropout 0.3 \
         --hierarchical $hierarchical \
+        --cf $cf \
+        --user_embed_size 10 \
 
 elif [ $mode = 'translate' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
-        --src_test ./data/$model/$cf_check/src-test.pkl \
-        --tgt_test ./data/$model/$cf_check/tgt-test.pkl \
+        --src_test ./data/$cf_check/src-test.pkl \
+        --tgt_test ./data/$cf_check/tgt-test.pkl \
         --epoch_threshold 0 \
         --batch_size $batch_size \
         --model $model \
@@ -99,12 +105,14 @@ elif [ $mode = 'translate' ]; then
         --decoder_hidden 500 \
         --embed_size 300 \
         --seed 20 \
-        --src_vocab ./processed/$model/iptvocab.pkl \
-        --tgt_vocab ./processed/$model/optvocab.pkl \
+        --src_vocab ./processed/iptvocab.pkl \
+        --tgt_vocab ./processed/optvocab.pkl \
         --maxlen $maxlen \
         --pred ./processed/$model/pred.txt \
         --hierarchical $hierarchical \
         --tgt_maxlen 50 \
+        --cf $cf \
+        --user_embed_size 10 \
 
 elif [ $mode = 'eval' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python eval.py \

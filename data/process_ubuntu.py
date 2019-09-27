@@ -56,7 +56,11 @@ def process_one_dialog(path, cf):
                     utterances.append((last_user, uu))
                     last_user = u1
             else:
-                utterances.append((u1, utterance))
+                if len(utterances) > 0 and utterance == utterances[-1][-1]:
+                    # ignore the useless utterance which is bad for the model
+                    pass
+                else:
+                    utterances.append((u1, utterance))
         if cf == 0 and cache:
             utterances.append((last_user, " <eou> ".join(cache)))
 
@@ -77,8 +81,8 @@ def make_src_tgt(dialogs):
     
             if cache:
                 src.append(copy.deepcopy(cache))
-                tgt.append([(user, utterance)])
-            cache.append((user, utterance))
+                tgt.append([(f'<{users.index(user)}>', utterance)])
+            cache.append((f'<{users.index(user)}>', utterance))
         return src, tgt
 
     src, tgt = [], []

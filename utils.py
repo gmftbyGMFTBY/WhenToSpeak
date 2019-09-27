@@ -13,6 +13,7 @@ from collections import Counter
 import os
 import numpy as np
 import torch
+import nltk
 
 
 def load_pickle(path):
@@ -69,18 +70,22 @@ def generate_vocab(files, vocab, cutoff=30000):
         for example in obj:
             for turn in example:
                 user, utterance = turn
-                words.extend(utterance.split())
+                utterance = utterance.replace('<0>', '')
+                utterance = utterance.replace('<1>', '')
+                words.extend(nltk.word_tokenize(utterance))
     words = Counter(words)
     print(f'[!] whole vocab size: {len(words)}')
     words = words.most_common(cutoff)
     
     # special words
-    words.extend([('<sos>', 1), ('<eos>', 1), ('<unk>', 1), ('<pad>', 1), ('<silence>', 1)])
+    words.extend([('<sos>', 1), ('<eos>', 1), ('<unk>', 1), 
+                  ('<pad>', 1), ('<silence>', 1), ('<0>', 1), ('<1>', 1)])
     w2idx = {item[0]:idx for idx, item in enumerate(words)}
     idx2w = [item[0] for item in words]
     
     with open(vocab, 'wb') as f:
         pickle.dump((w2idx, idx2w), f)
+
     print(f'[!] save the vocab into {vocab}, vocab size: {len(w2idx)}')
 
 

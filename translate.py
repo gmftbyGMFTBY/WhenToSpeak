@@ -20,6 +20,7 @@ from utils import *
 from data_loader import *
 from model.seq2seq_attention import Seq2Seq
 from model.HRED import HRED
+from model.HRED_cf import HRED_cf
 
 
 def translate(**kwargs):
@@ -31,13 +32,19 @@ def translate(**kwargs):
     
     # load dataset
     if kwargs['hierarchical'] == 1:
-        test_iter = get_batch_data(kwargs['src_test'], kwargs['tgt_test'],
-                                   kwargs['src_vocab'], kwargs['tgt_vocab'],
-                                   kwargs['batch_size'], kwargs['maxlen'])
+        if kwargs['cf'] == 1:
+            func = get_batch_data_cf
+        else:
+            func = get_batch_data
     else:
-        test_iter = get_batch_data_flatten(kwargs['src_test'], kwargs['tgt_test'],
-                                           kwargs['src_vocab'], kwargs['tgt_vocab'],
-                                           kwargs['batch_size'], kwargs['maxlen'])
+        if kwargs['cf'] == 1:
+            func = get_batch_data_flatten_cf
+        else:
+            func = get_batch_data_flatten
+
+    test_iter = get_batch_data(kwargs['src_test'], kwargs['tgt_test'],
+                               kwargs['src_vocab'], kwargs['tgt_vocab'],
+                               kwargs['batch_size'], kwargs['maxlen'])
 
     # load net
     if kwargs['model'] == 'seq2seq':
@@ -50,6 +57,12 @@ def translate(**kwargs):
                    kwargs['utter_hidden'], kwargs['context_hidden'],
                    kwargs['decoder_hidden'], pad=tgt_w2idx['<pad>'],
                    sos=tgt_w2idx['<sos>'], utter_n_layer=kwargs['utter_n_layer'])
+    elif kwargs['model'] == 'hred-cf':
+        net = HRED_cf(kwargs['embed_size'], len(src_w2idx), len(tgt_w2idx),
+                      kwargs['utter_hidden'], kwargs['context_hidden'],
+                      kwargs['decoder_hidden'], pad=tgt_w2idx['<pad>'],
+                      sos=tgt_w2idx['<sos>'], utter_n_layer=kwargs['utter_n_layer'],
+                      user_embed_size=kwargs['user_embed_size'])
     else:
         raise Exception('[!] wrong model (seq2seq, seq2seq-cf, hred, hred-cf)')
 
@@ -67,7 +80,10 @@ def translate(**kwargs):
     with open(kwargs['pred'], 'w') as f:
         pbar = tqdm(test_iter)
         for batch in pbar:
-            sbatch, tbatch, turn_lengths = batch
+            if kwargs['cf'] == 1:
+                sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
+            else:
+                sbatch, tbatch, turn_lengths = batch
 
             batch_size = tbatch.shape[1]
             if kwargs['hierarchical']:
@@ -76,8 +92,11 @@ def translate(**kwargs):
             src_pad, tgt_pad = src_w2idx['<pad>'], tgt_w2idx['<pad>']
             src_eos, tgt_eos = src_w2idx['<eos>'], tgt_w2idx['<eos>']
             
-            # output: [maxlen, batch_size], sbatch: [turn, max_len, batch_size]
-            output = net.predict(sbatch, kwargs['tgt_maxlen'], turn_lengths)
+            # output: [maxlen, batch_size], de: [batch]
+            if kwargs['cf'] == 1:
+                de, output = net.predict(sbatch, tbatch, subatch, tubatch, turn_lengths)
+            else:
+                output = net.predict(sbatch, kwargs['tgt_maxlen'], turn_lengths)
             
             for i in range(batch_size):
                 ref = list(map(int, tbatch[:, i].tolist()))
@@ -118,9 +137,20 @@ def translate(**kwargs):
                     src = src[1:src_endx]
                     src = ' '.join(num2seq(src, src_idx2w))
 
-                f.write(f'- src: {src}\n')
-                f.write(f'- ref: {ref}\n')
-                f.write(f'- tgt: {tgt}\n\n')
+                if kwargs['cf'] == 1:
+                    f.write(f'- src: {src}\n')
+                    if label[i].item() == 1:
+                        f.write(f'+ ref: {ref}\n')
+                    else:
+                        f.write(f'- ref: {ref}\n')
+                    if de[i].item() == 1:
+                        f.write(f'+ tgt: {tgt}\n\n')
+                    else:
+                        f.write(f'- tgt: {tgt}\n\n')
+                else:
+                    f.write(f'- src: {src}\n')
+                    f.write(f'- ref: {ref}\n')
+                    f.write(f'- tgt: {tgt}\n\n')
 
     print(f'[!] write the translate result into {kwargs["pred"]}')
 
@@ -151,6 +181,7 @@ if __name__ == "__main__":
                         help='the csv file save the output')
     parser.add_argument('--hierarchical', type=int, default=1, help='whether hierarchical architecture')
     parser.add_argument('--tgt_maxlen', type=int, default=50, help='target sequence maxlen')
+    parser.add_argument('')
 
     args = parser.parse_args()
     

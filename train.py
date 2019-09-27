@@ -21,6 +21,7 @@ from data_loader import *
 from model.seq2seq_attention import Seq2Seq
 from model.HRED import HRED
 from model.seq2seq_attention_cf import Seq2Seq_cf
+from model.HRED_cf import HRED_cf
 from model.layers import *
 
 
@@ -37,8 +38,8 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
     for idx, batch in enumerate(pbar):
         # [turn, length, batch], [seq_len, batch] / [seq_len, batch], [seq_len, batch]
         if cf:
-            # debatch: [batch,]
-            sbatch, tbatch, debatch, turn_lengths = batch
+            # [turn, length, batch], [seq_len, batch], [turns, batch], [batch], [batch], [batch]
+            sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
         else:
             sbatch, tbatch, turn_lengths = batch
         
@@ -49,18 +50,18 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
 
         optimizer.zero_grad()
 
-        # [seq_len, batch, vocab_size]
-        output = net(sbatch, tbatch, turn_lengths)
         if cf:
-            output, de = output
-            de_loss = de_criterion(de, debatch)
+            # output: [seq_len, batch, vocab_size], de: [batch]
+            de, output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
+            de_loss = de_criterion(de, label)
             lm_loss = criterion(output[1:].view(-1, vocab_size),
                                 tbatch[1:].contiguous().view(-1))
-            loss = 0.75 * de_loss + 0.25 * lm_loss
+            loss = 0.5 * de_loss + 0.5 * lm_loss
             writer.add_scalar(f'{writer_str}-DeLoss/train', de_loss, idx)
             writer.add_scalar(f'{writer_str}-LMLoss/train', lm_loss, idx)
-            writer.add_scalar(f'{writer_str}-Loss/train', loss, idx)
+            writer.add_scalar(f'{writer_str}-TotalLoss/train', loss, idx)
         else:
+            output = net(sbatch, tbatch, turn_lengths)
             loss = criterion(output[1:].view(-1, vocab_size),
                              tbatch[1:].contiguous().view(-1))
             # add train loss to the tensorfboard
@@ -89,17 +90,16 @@ def validation(data_iter, net, vocab_size, pad, cf=False):
 
     for idx, batch in enumerate(pbar):
         if cf:
-            sbatch, tbatch, debatch, turn_lengths = batch
+            sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
         else:
             sbatch, tbatch, turn_lengths = batch
         batch_size = tbatch.shape[1]
         if batch_size == 1:
             continue
 
-        output = net(sbatch, tbatch, turn_lengths)
         if cf:
-            output, de = output
-            de_loss = de_criterion(de, debatch)
+            output, de = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
+            de_loss = de_criterion(de, label)
             lm_loss = criterion(output[1:].view(-1, vocab_size),
                                 tbatch[1:].view(-1, vocab_size))
             loss = 0.75 * de_loss + 0.25 * lm_loss
@@ -109,6 +109,7 @@ def validation(data_iter, net, vocab_size, pad, cf=False):
             total_acc += torch.sum(de == debatch).item()
             total_num += len(debatch)
         else:
+            output = net(sbatch, tbatch, turn_lengths)
             loss = criterion(output[1:].view(-1, vocab_size),
                              tbatch[1:].contiguous().view(-1))
         pbar.set_description(f'batch {idx}, dev/test loss: {round(loss.item(), 4)}')
@@ -122,8 +123,7 @@ def validation(data_iter, net, vocab_size, pad, cf=False):
 
 
 def test(data_iter, net, vocab_size, pad, cf=False):
-    test_loss = validation(data_iter, net, vocab_size, pad, cf=cf)
-    return test_loss
+    return validation(data_iter, net, vocab_size, pad, cf=cf)
 
 
 def main(**kwargs):
@@ -156,7 +156,12 @@ def main(**kwargs):
                          sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'],
                          utter_n_layer=kwargs['utter_n_layer'])
     elif kwargs['model'] == 'hred-cf':
-        pass
+        net = HRED_cf(kwargs['embed_size'], len(src_w2idx), len(tgt_w2idx), 
+                      kwargs['utter_hidden'], kwargs['context_hidden'],
+                      kwargs['decoder_hidden'], teach_force=kwargs['teach_force'],
+                      pad=tgt_w2idx['<pad>'], sos=tgt_w2idx['<sos>'], 
+                      dropout=kwargs['dropout'], utter_n_layer=kwargs['utter_n_layer'],
+                      user_embed_size=kwargs['user_embed_size'])
     else:
         raise Exception('[!] Wrong model (seq2seq, hred, seq2seq-cf, hred-cf)')
 
@@ -180,25 +185,25 @@ def main(**kwargs):
     for epoch in pbar:
         # prepare dataset
         if kwargs['hierarchical'] == 1:
-            train_iter = get_batch_data(kwargs['src_train'], kwargs['tgt_train'],
-                                        kwargs['src_vocab'], kwargs['tgt_vocab'], 
-                                        kwargs['batch_size'], kwargs['maxlen'])
-            test_iter = get_batch_data(kwargs['src_test'], kwargs['tgt_test'],
-                                       kwargs['src_vocab'], kwargs['tgt_vocab'],
-                                       kwargs['batch_size'], kwargs['maxlen'])
-            dev_iter = get_batch_data(kwargs['src_dev'], kwargs['tgt_dev'],
-                                      kwargs['src_vocab'], kwargs['tgt_vocab'],
-                                      kwargs['batch_size'], kwargs['maxlen'])
+            if kwargs['cf'] == 0:
+                func = get_batch_data
+            else:
+                func = get_batch_data_cf
         else:
-            train_iter = get_batch_data_flatten(kwargs['src_train'], kwargs['tgt_train'],
-                                                kwargs['src_vocab'], kwargs['tgt_vocab'],
-                                                kwargs['batch_size'], kwargs['maxlen'])
-            test_iter = get_batch_data_flatten(kwargs['src_test'], kwargs['tgt_test'],
-                                               kwargs['src_vocab'], kwargs['tgt_vocab'],
-                                               kwargs['batch_size'], kwargs['maxlen'])
-            dev_iter = get_batch_data_flatten(kwargs['src_dev'], kwargs['tgt_dev'],
-                                              kwargs['src_vocab'], kwargs['tgt_vocab'],
-                                              kwargs['batch_size'], kwargs['maxlen'])
+            if kwargs['cf'] == 0:
+                func = get_batch_data_flatten
+            else:
+                func = get_batch_data_flatten_cf
+
+        train_iter = func(kwargs['src_train'], kwargs['tgt_train'],
+                                    kwargs['src_vocab'], kwargs['tgt_vocab'], 
+                                    kwargs['batch_size'], kwargs['maxlen'])
+        test_iter = func(kwargs['src_test'], kwargs['tgt_test'],
+                                   kwargs['src_vocab'], kwargs['tgt_vocab'],
+                                   kwargs['batch_size'], kwargs['maxlen'])
+        dev_iter = func(kwargs['src_dev'], kwargs['tgt_dev'],
+                                  kwargs['src_vocab'], kwargs['tgt_vocab'],
+                                  kwargs['batch_size'], kwargs['maxlen'])
 
         writer_str = f'{kwargs["model"]}-epoch-{epoch}'
         train(writer, writer_str, train_iter, net, optimizer, 
@@ -233,8 +238,12 @@ def main(**kwargs):
 
     # test
     load_best_model(kwargs['model'], net, threshold=kwargs['epoch_threshold'])
-    test_loss = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs["cf"])
-    print(f'Test loss: {test_loss}, test_ppl: {round(math.exp(test_loss), 4)}')
+    if kwargs['cf'] == 1:
+        test_loss, test_acc = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs['cf'])
+        print(f'Test loss: {test_loss}, test acc: {test_acc}')
+    else:
+        test_loss = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs["cf"])
+        print(f'Test loss: {test_loss}, test_ppl: {round(math.exp(test_loss), 4)}')
     writer.close()
 
 
@@ -275,6 +284,7 @@ if __name__ == "__main__":
     parser.add_argument('--dropout', type=float, default=0.5, help='dropout ratio')
     parser.add_argument('--hierarchical', type=int, default=1, help='Whether hierarchical architecture')
     parser.add_argument('--cf', type=int, default=0, help='whether have the classification')
+    parser.add_argument('--user_embed_size', type=int, default=10, help='cf mode uses this parameter')
 
     args = parser.parse_args()
 
