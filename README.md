@@ -84,7 +84,7 @@ Evaluate the result of the translated utterances
 
 1. Automatic evaluation
 
-* Compare the BLEU4, BERTScore, Disctint-1, Distinct-2 score for all the models.
+* Compare the PPL, BLEU4, Disctint-1, Distinct-2 score for all the models.
     
     Proposed classified methods need to be cascaded to calculate the BLEU4, BERTScore (the same format as the traditional models' results)
     

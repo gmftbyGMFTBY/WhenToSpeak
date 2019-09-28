@@ -321,17 +321,17 @@ def get_batch_data_cf(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen):
 
 if __name__ == "__main__":
     # batch_num = 0
-    # for sbatch, tbatch, turn_lengths in get_batch_data_flatten('./data/seq2seq/src-train.pkl',
-    #                                                            './data/seq2seq/tgt-train.pkl',
-    #                                                            './processed/seq2seq/iptvocab.pkl',
-    #                                                            './processed/seq2seq/optvocab.pkl', 16, 150):
+    # for sbatch, tbatch, turn_lengths in get_batch_data_flatten('./data/cornell-corpus/ncf/src-train.pkl',
+    #                                                            './data/cornell-corpus/ncf/tgt-train.pkl',
+    #                                                            './processed/cornell/iptvocab.pkl',
+    #                                                            './processed/cornell/optvocab.pkl', 32, 150):
     #     print(len(sbatch), tbatch.shape, turn_lengths.shape)
     #     batch_num += 1
     # print(batch_num)
 
     batch_num, zero, one = 0, 0, 0
     # stat the ratio of the 0 label in the cf mode dataset
-    for sbatch, tbatch, subatch, tubatch, lbatch, turn_lengths in get_batch_data_cf('./data/cf/src-train.pkl', './data/cf/tgt-train.pkl', './processed/iptvocab.pkl', './processed/optvocab.pkl', 32, 50):
+    for sbatch, tbatch, subatch, tubatch, lbatch, turn_lengths in get_batch_data_cf('./data/cornell-corpus/cf/src-train.pkl', './data/cornell-corpus/cf/tgt-train.pkl', './processed/cornell/iptvocab.pkl', './processed/cornell/optvocab.pkl', 32, 50):
         batch_num += 1
         o = torch.sum(lbatch).item()
         one += o

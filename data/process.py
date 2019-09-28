@@ -64,7 +64,7 @@ def process_one_dialog(path, cf):
         if cf == 0 and cache:
             utterances.append((last_user, " <eou> ".join(cache)))
 
-        if len(users) != 2:
+        if len(users) == 2:
             return (users, utterances)
         else:
             return None
@@ -105,6 +105,7 @@ if __name__ == "__main__":
     parser.add_argument('--low', type=int, default=5, help='Low threshold')
     parser.add_argument('--high', type=int, default=15, help='High threshold')
     parser.add_argument('--dataset', type=str, default='ubuntu')
+    parser.add_argument('--maxsize', type=int, default=40000, help='Max size of the dataset')
     parser.add_argument('--src_train', type=str, default='seq2seq/src-train.pkl')
     parser.add_argument('--tgt_train', type=str, default='seq2seq/tgt-train.pkl')
     parser.add_argument('--src_test', type=str, default='seq2seq/src-test.pkl')
@@ -121,6 +122,10 @@ if __name__ == "__main__":
         dialog = process_one_dialog(file, args.cf)
         if dialog:
             dialogs.append(dialog)
+
+    # size limitation
+    if len(dialogs) > args.maxsize:
+        dialogs = random.sample(dialogs, args.maxsize)
     
     print(f'Totally {len(dialogs)} dialogs')
     

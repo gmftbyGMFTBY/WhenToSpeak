@@ -60,16 +60,18 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
             # also add the train acc into the tensorboard
             de = (de > 0.5).long()
             acc = (torch.sum(de == label.long()).item()) / len(label)
-            writer.add_scalar(f'{writer_str}-DeAcc/train', acc, idx)
-            writer.add_scalar(f'{writer_str}-DeLoss/train', de_loss, idx)
-            writer.add_scalar(f'{writer_str}-LMLoss/train', lm_loss, idx)
-            writer.add_scalar(f'{writer_str}-TotalLoss/train', loss, idx)
+            pbar.set_description(f'batch {batch_num}, lm loss: {round(lm_loss.item(), 4)}, de_loss: {round(de_loss.item(), 4)}, total loss: {round(loss.item(), 4)}')
+            writer.add_scalar(f'{writer_str}/DeAcc-train', acc, idx)
+            writer.add_scalar(f'{writer_str}/DeLoss-train', de_loss, idx)
+            writer.add_scalar(f'{writer_str}/LMLoss-train', lm_loss, idx)
+            writer.add_scalar(f'{writer_str}/TotalLoss-train', loss, idx)
         else:
             output = net(sbatch, tbatch, turn_lengths)
             loss = criterion(output[1:].view(-1, vocab_size),
                              tbatch[1:].contiguous().view(-1))
             # add train loss to the tensorfboard
             writer.add_scalar(f'{writer_str}-Loss/train', loss, idx)
+            pbar.set_description(f'batch {batch_num}, training loss: {round(loss.item(), 4)}')
 
         loss.backward()
         clip_grad_norm_(net.parameters(), grad_clip)
@@ -78,7 +80,6 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
         total_loss += loss.item()
         batch_num += 1
 
-        pbar.set_description(f'batch {batch_num}, training loss: {round(loss.item(), 4)}')
 
     # return avg loss
     return round(total_loss / batch_num, 4)

@@ -17,6 +17,7 @@ python process.py \
     --low 5 \
     --high 15 \
     --dataset $dataset \
+    --maxsize 20000 \
     --src_train ${dataset}-corpus/$cf/src-train.pkl \
     --tgt_train ${dataset}-corpus/$cf/tgt-train.pkl \
     --src_test ${dataset}-corpus/$cf/src-test.pkl \
