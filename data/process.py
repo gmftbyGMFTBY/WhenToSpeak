@@ -101,9 +101,10 @@ def write_file(obj, path):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process the ubuntu dataset')
+    parser = argparse.ArgumentParser(description='Process the dataset')
     parser.add_argument('--low', type=int, default=5, help='Low threshold')
     parser.add_argument('--high', type=int, default=15, help='High threshold')
+    parser.add_argument('--dataset', type=str, default='ubuntu')
     parser.add_argument('--src_train', type=str, default='seq2seq/src-train.pkl')
     parser.add_argument('--tgt_train', type=str, default='seq2seq/tgt-train.pkl')
     parser.add_argument('--src_test', type=str, default='seq2seq/src-test.pkl')
@@ -113,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument('--cf', type=int, default=0, help='whether have the classification')
     args = parser.parse_args()
 
-    files = get_all_dialogues('./dialogs', turns_threshold=(args.low, args.high))
+    files = get_all_dialogues(args.dataset, turns_threshold=(args.low, args.high))
 
     dialogs = []
     for file in tqdm(files):

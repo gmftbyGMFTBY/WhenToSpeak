@@ -50,5 +50,14 @@ def cal_BERTScore(refer, candidate):
     return np.mean(bert_scores)
 
 
+def cal_acc_P_R_F1(tp, fn, fp, tn):
+    # cal the F1 metric from the stat data
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 * precision * recall / (precision + recall)
+    acc = (tp + tn) / (tp + fn + fp + tn)
+    return round(precision, 4), round(recall, 4), round(f1, 4), round(acc, 4)
+
+
 if __name__ == "__main__":
     pass

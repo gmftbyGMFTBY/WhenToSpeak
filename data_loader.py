@@ -329,8 +329,11 @@ if __name__ == "__main__":
     #     batch_num += 1
     # print(batch_num)
 
-    batch_num = 0
+    batch_num, zero, one = 0, 0, 0
+    # stat the ratio of the 0 label in the cf mode dataset
     for sbatch, tbatch, subatch, tubatch, lbatch, turn_lengths in get_batch_data_cf('./data/cf/src-train.pkl', './data/cf/tgt-train.pkl', './processed/iptvocab.pkl', './processed/optvocab.pkl', 32, 50):
-        ipdb.set_trace()
         batch_num += 1
-    print(batch_num)
+        o = torch.sum(lbatch).item()
+        one += o
+        zero += len(lbatch) - o
+    print(batch_num, zero, one)

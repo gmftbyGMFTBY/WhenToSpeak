@@ -57,6 +57,10 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
             lm_loss = criterion(output[1:].view(-1, vocab_size),
                                 tbatch[1:].contiguous().view(-1))
             loss = 0.5 * de_loss + 0.5 * lm_loss
+            # also add the train acc into the tensorboard
+            de = (de > 0.5).long()
+            acc = (torch.sum(de == label.long()).item()) / len(label)
+            writer.add_scalar(f'{writer_str}-DeAcc/train', acc, idx)
             writer.add_scalar(f'{writer_str}-DeLoss/train', de_loss, idx)
             writer.add_scalar(f'{writer_str}-LMLoss/train', lm_loss, idx)
             writer.add_scalar(f'{writer_str}-TotalLoss/train', loss, idx)
@@ -74,7 +78,7 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
         total_loss += loss.item()
         batch_num += 1
 
-        pbar.set_description(f'batch {batch_num}, training loss: {round(loss.item(), 4)}, lr: {round(optimizer.param_groups[0]["lr"], 10)}')
+        pbar.set_description(f'batch {batch_num}, training loss: {round(loss.item(), 4)}')
 
     # return avg loss
     return round(total_loss / batch_num, 4)
@@ -128,7 +132,7 @@ def test(data_iter, net, vocab_size, pad, cf=False):
 
 def main(**kwargs):
     # tensorboard 
-    writer = SummaryWriter(log_dir=f'./tblogs/{kwargs["model"]}')
+    writer = SummaryWriter(log_dir=f'./tblogs/{kwargs["dataset"]}/{kwargs["model"]}')
 
     # load vocab
     src_vocab, tgt_vocab = load_pickle(kwargs['src_vocab']), load_pickle(kwargs['tgt_vocab'])
@@ -163,7 +167,7 @@ def main(**kwargs):
                       dropout=kwargs['dropout'], utter_n_layer=kwargs['utter_n_layer'],
                       user_embed_size=kwargs['user_embed_size'])
     else:
-        raise Exception('[!] Wrong model (seq2seq, hred, seq2seq-cf, hred-cf)')
+        raise Exception('[!] Wrong model (seq2seq, hred, hred-cf)')
 
     if torch.cuda.is_available():
         net.cuda()
@@ -196,39 +200,39 @@ def main(**kwargs):
                 func = get_batch_data_flatten_cf
 
         train_iter = func(kwargs['src_train'], kwargs['tgt_train'],
-                                    kwargs['src_vocab'], kwargs['tgt_vocab'], 
-                                    kwargs['batch_size'], kwargs['maxlen'])
+                          kwargs['src_vocab'], kwargs['tgt_vocab'], 
+                          kwargs['batch_size'], kwargs['maxlen'])
         test_iter = func(kwargs['src_test'], kwargs['tgt_test'],
-                                   kwargs['src_vocab'], kwargs['tgt_vocab'],
-                                   kwargs['batch_size'], kwargs['maxlen'])
+                         kwargs['src_vocab'], kwargs['tgt_vocab'],
+                         kwargs['batch_size'], kwargs['maxlen'])
         dev_iter = func(kwargs['src_dev'], kwargs['tgt_dev'],
-                                  kwargs['src_vocab'], kwargs['tgt_vocab'],
-                                  kwargs['batch_size'], kwargs['maxlen'])
+                        kwargs['src_vocab'], kwargs['tgt_vocab'],
+                        kwargs['batch_size'], kwargs['maxlen'])
 
-        writer_str = f'{kwargs["model"]}-epoch-{epoch}'
+        writer_str = f'{kwargs["dataset"]}-{kwargs["model"]}-epoch-{epoch}'
         train(writer, writer_str, train_iter, net, optimizer, 
               len(tgt_w2idx), tgt_w2idx['<pad>'], 
               grad_clip=kwargs['grad_clip'], cf=kwargs['cf']==1)
         if kwargs["cf"] == 1:
             val_loss, val_acc = validation(dev_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], 
                                            cf=kwargs["cf"]==1)
-            writer.add_scalar(f'{kwargs["model"]}-Acc/dev', val_acc, epoch)
+            writer.add_scalar(f'{kwargs["dataset"]}-{kwargs["model"]}-Acc/dev', val_acc, epoch)
         else:
             val_loss = validation(dev_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], 
                                   cf=kwargs["cf"]==1)
         # add scalar to tensorboard
-        writer.add_scalar(f'{kwargs["model"]}-Loss/dev', val_loss, epoch)
+        writer.add_scalar(f'{kwargs["dataset"]}-{kwargs["model"]}-Loss/dev', val_loss, epoch)
 
         if not best_val_loss or val_loss < best_val_loss:
             state = {'net': net.state_dict(), 'epoch': epoch}
             torch.save(state, 
-                       f'./ckpt/{kwargs["model"]}/vloss_{val_loss}_epoch_{epoch}.pt')
+                       f'./ckpt/{kwargs["dataset"]}/{kwargs["model"]}/vloss_{val_loss}_epoch_{epoch}.pt')
             best_val_loss = val_loss
             patience = 0
         else:
             patience += 1
         
-        pbar.set_description(f'Epoch: {epoch}, val_loss: {val_loss}, val_ppl: {round(math.exp(val_loss), 4)}, patience: {patience}/{kwargs["patience"]}')
+        pbar.set_description(f'Epoch: {epoch}, val_loss: {val_loss}, patience: {patience}/{kwargs["patience"]}')
 
         if patience > kwargs['patience']:
             print(f'Early Stop {kwargs["patience"]} at epoch {epoch}')
@@ -237,7 +241,7 @@ def main(**kwargs):
     pbar.close()
 
     # test
-    load_best_model(kwargs['model'], net, threshold=kwargs['epoch_threshold'])
+    load_best_model(kwargs["dataset"], kwargs['model'], net, threshold=kwargs['epoch_threshold'])
     if kwargs['cf'] == 1:
         test_loss, test_acc = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs['cf'])
         print(f'Test loss: {test_loss}, test acc: {test_acc}')
@@ -285,6 +289,7 @@ if __name__ == "__main__":
     parser.add_argument('--hierarchical', type=int, default=1, help='Whether hierarchical architecture')
     parser.add_argument('--cf', type=int, default=0, help='whether have the classification')
     parser.add_argument('--user_embed_size', type=int, default=10, help='cf mode uses this parameter')
+    parser.add_argument('--dataset', type=str, default='ubuntu')
 
     args = parser.parse_args()
 

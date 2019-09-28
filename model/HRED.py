@@ -49,19 +49,17 @@ class Utterance_encoder(nn.Module):
         init.xavier_normal_(self.hidden_proj.weight)
         init.orthogonal_(self.gru.weight_hh_l0)
         init.orthogonal_(self.gru.weight_ih_l0)
-        self.gru.bias_ih_l0.data.fill_(0.0)
-        self.gru.bias_hh_l0.data.fill_(0.0)
 
     def forward(self, inpt, lengths, hidden=None):
         # use pack_padded
         # inpt: [seq_len, batch], lengths: [batch_size]
         embedded = self.embed(inpt)    # [seq_len, batch, input_size]
 
-        if not hidden:
-            hidden = torch.randn(self.n_layer * 2, len(lengths), 
-                                 self.hidden_size)
-            if torch.cuda.is_available():
-                hidden = hidden.cuda()
+        # if not hidden:
+        #     hidden = torch.randn(self.n_layer * 2, len(lengths), 
+        #                          self.hidden_size)
+        #     if torch.cuda.is_available():
+        #         hidden = hidden.cuda()
 
         embedded = nn.utils.rnn.pack_padded_sequence(embedded, lengths, enforce_sorted=False)
         _, hidden = self.gru(embedded, hidden)    
@@ -97,10 +95,10 @@ class Context_encoder(nn.Module):
     def forward(self, inpt, hidden=None):
         # inpt: [turn_len, batch, input_size]
         # hidden
-        if not hidden:
-            hidden = torch.randn(1, inpt.shape[1], self.hidden_size)
-            if torch.cuda.is_available():
-                hidden = hidden.cuda()
+        # if not hidden:
+        #     hidden = torch.randn(1, inpt.shape[1], self.hidden_size)
+        #     if torch.cuda.is_available():
+        #         hidden = hidden.cuda()
         
         inpt = self.drop(inpt)
         output, hidden = self.gru(inpt, hidden)

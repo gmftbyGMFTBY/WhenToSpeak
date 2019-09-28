@@ -64,7 +64,7 @@ def translate(**kwargs):
                       sos=tgt_w2idx['<sos>'], utter_n_layer=kwargs['utter_n_layer'],
                       user_embed_size=kwargs['user_embed_size'])
     else:
-        raise Exception('[!] wrong model (seq2seq, seq2seq-cf, hred, hred-cf)')
+        raise Exception('[!] wrong model (seq2seq, hred, hred-cf)')
 
     if torch.cuda.is_available():
         net.cuda()
@@ -74,7 +74,7 @@ def translate(**kwargs):
     print(net)
 
     # load best model
-    load_best_model(kwargs['model'], net, threshold=kwargs['epoch_threshold'])
+    load_best_model(kwargs["dataset"], kwargs['model'], net, threshold=kwargs['epoch_threshold'])
     
     # translate
     with open(kwargs['pred'], 'w') as f:
@@ -94,7 +94,10 @@ def translate(**kwargs):
             
             # output: [maxlen, batch_size], de: [batch]
             if kwargs['cf'] == 1:
-                de, output = net.predict(sbatch, tbatch, subatch, tubatch, turn_lengths)
+                de, output = net.predict(sbatch, subatch, tubatch, kwargs['tgt_maxlen'], turn_lengths)
+                # fix de
+                de = (de > 0.5).long().cpu().tolist()
+                label = label.cpu().tolist()
             else:
                 output = net.predict(sbatch, kwargs['tgt_maxlen'], turn_lengths)
             
@@ -150,11 +153,11 @@ def translate(**kwargs):
 
                 if kwargs['cf'] == 1:
                     f.write(f'- src: {src}\n')
-                    if label[i].item() == 1:
+                    if label[i] == 1:
                         f.write(f'+ ref: {ref}\n')
                     else:
                         f.write(f'- ref: {ref}\n')
-                    if de[i].item() == 1:
+                    if de[i] == 1:
                         f.write(f'+ tgt: {tgt}\n\n')
                     else:
                         f.write(f'- tgt: {tgt}\n\n')
@@ -194,6 +197,7 @@ if __name__ == "__main__":
     parser.add_argument('--tgt_maxlen', type=int, default=50, help='target sequence maxlen')
     parser.add_argument('--user_embed_size', type=int, default=10, help='user embed size')
     parser.add_argument('--cf', type=int, default=0, help='whether have the classification')
+    parser.add_argument('--dataset', type=str, default='ubuntu')
 
     args = parser.parse_args()
     

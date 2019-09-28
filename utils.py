@@ -41,8 +41,8 @@ def pad_sequence(pad, batch, bs):
         batch[i].extend([pad] * (maxlen - len(batch[i])))
 
 
-def load_best_model(model, net, threshold):
-    path = f'./ckpt/{model}/'
+def load_best_model(dataset, model, net, threshold):
+    path = f'./ckpt/{dataset}/{model}/'
     best_loss, best_file, best_epoch = np.inf, None, -1
 
     for file in os.listdir(path):

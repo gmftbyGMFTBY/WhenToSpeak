@@ -18,8 +18,22 @@ Model architecture:
 6. nltk: word tokenize
 
 ## Dataset
-Ubuntu Dialogue v1, format:
+Format:
+1. Corpus folder have lots of sub folder, each named as the turn lengths of the conversations.
+2. Each sub folder have lots of file which contains one conversation.
+3. Each conversation file is the **tsv** format, each line have four element:
+    * time
+    * poster
+    * reader
+    * utterance
 
+Create the dataset
+
+```bash
+# ubuntu / cornell, cf / ncf. Then the ubuntu-corpus folder will be created
+# ubuntu-corpus have two sub folder (cf / ncf) for each mode
+./data/run.sh ubuntu cf
+```
 
 ## Metric
 1. F1: timing of speaking
@@ -42,28 +56,28 @@ Ubuntu Dialogue v1, format:
 Generate the vocab of the dataset
 
 ```python
-./run.sh vocab 0 0
+./run.sh vocab ubuntu 0 0
 ```
 
 Train the model (seq2seq / seq2seq-cf / hred / hred-cf):
 
 ```python
 # train the hred model on the 4th GPU
-./run.sh train hred 4
+./run.sh train ubuntu hred 4
 ```
 
 Translate the test dataset by applying the model
 
 ```python
 # translate the test dataset by applying the hred model on 4th GPU
-./run.sh translate hred 4
+./run.sh translate ubuntu hred 4
 ```
 
 Evaluate the result of the translated utterances
 
 ```python
 # evaluate the translated result of the model on 4th GPU (BERTScore need it)
-./run.sh eval hred 4
+./run.sh eval ubuntu hred 4
 ```
 
 ## Experiment Result
@@ -72,7 +86,7 @@ Evaluate the result of the translated utterances
 
 * Compare the BLEU4, BERTScore, Disctint-1, Distinct-2 score for all the models.
     
-    Proposed classified methods need to be cascaded to calculate the BLEU4, BERTScore (the same format as the traditional models' result)
+    Proposed classified methods need to be cascaded to calculate the BLEU4, BERTScore (the same format as the traditional models' results)
     
     <table align="center">
       <tr>
@@ -84,24 +98,24 @@ Evaluate the result of the translated utterances
       </tr>
       <tr>
         <td>seq2seq</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>0.0405</td>
+        <td>0.0223</td>
+        <td>0.089</td>
+        <td>0.3825</td>
       </tr>
       <tr>
         <td>hred</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>0.04</td>
+        <td>0.0219</td>
+        <td>0.0867</td>
+        <td>0.3758</td>
       </tr>
       <tr>
         <td>hred-cf</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>0.0407</td>
+        <td>0.0125</td>
+        <td>0.0585</td>
+        <td>0.3751</td>
       </tr>
       <tr>
         <td>proposed</td>
@@ -113,7 +127,7 @@ Evaluate the result of the translated utterances
     </table>
 
 
-* F1 metric for measuring the accuracy for the timing of the speaking, only for classified methods (hred-cf, ...)
+* F1 metric for measuring the accuracy for the timing of the speaking, only for classified methods (hred-cf, ...). The stat data shows that the number of the negative label is the half of the number of the positive label. **F1** and **Acc** maybe suitable for mearusing the result instead of the F1. In this settings, we care more about the precision in F1 metric.
 
 2. Human judgments (engaging, ...)
     
