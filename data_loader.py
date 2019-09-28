@@ -330,7 +330,7 @@ if __name__ == "__main__":
     # print(batch_num)
 
     batch_num = 0
-    for sbatch, tbatch, subatch, tubatch, lbatch, turn_lengths in get_batch_data_cf('./data/seq2seq/cf/src-train.pkl', './data/seq2seq/cf/tgt-train.pkl', './processed/seq2seq/iptvocab.pkl', './processed/seq2seq/optvocab.pkl', 32, 50):
+    for sbatch, tbatch, subatch, tubatch, lbatch, turn_lengths in get_batch_data_cf('./data/cf/src-train.pkl', './data/cf/tgt-train.pkl', './processed/iptvocab.pkl', './processed/optvocab.pkl', 32, 50):
         ipdb.set_trace()
         batch_num += 1
     print(batch_num)

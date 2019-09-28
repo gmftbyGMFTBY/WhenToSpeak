@@ -42,9 +42,9 @@ def translate(**kwargs):
         else:
             func = get_batch_data_flatten
 
-    test_iter = get_batch_data(kwargs['src_test'], kwargs['tgt_test'],
-                               kwargs['src_vocab'], kwargs['tgt_vocab'],
-                               kwargs['batch_size'], kwargs['maxlen'])
+    test_iter = func(kwargs['src_test'], kwargs['tgt_test'],
+                     kwargs['src_vocab'], kwargs['tgt_vocab'],
+                     kwargs['batch_size'], kwargs['maxlen'])
 
     # load net
     if kwargs['model'] == 'seq2seq':
@@ -137,6 +137,17 @@ def translate(**kwargs):
                     src = src[1:src_endx]
                     src = ' '.join(num2seq(src, src_idx2w))
 
+                # clean the ref and tgt
+                ref = ref.replace('<1>', '').strip()
+                ref = ref.replace('<0>', '').strip()
+                ref = ref.replace('< 1 >', '').strip()
+                ref = ref.replace('< 0 >', '').strip()
+
+                tgt = tgt.replace('<1>', '').strip()
+                tgt = tgt.replace('<0>', '').strip()
+                tgt = tgt.replace('< 1 >', '').strip()
+                tgt = tgt.replace('< 0 >', '').strip()
+
                 if kwargs['cf'] == 1:
                     f.write(f'- src: {src}\n')
                     if label[i].item() == 1:
@@ -181,7 +192,8 @@ if __name__ == "__main__":
                         help='the csv file save the output')
     parser.add_argument('--hierarchical', type=int, default=1, help='whether hierarchical architecture')
     parser.add_argument('--tgt_maxlen', type=int, default=50, help='target sequence maxlen')
-    parser.add_argument('')
+    parser.add_argument('--user_embed_size', type=int, default=10, help='user embed size')
+    parser.add_argument('--cf', type=int, default=0, help='whether have the classification')
 
     args = parser.parse_args()
     

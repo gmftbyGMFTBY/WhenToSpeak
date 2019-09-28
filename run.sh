@@ -70,7 +70,7 @@ elif [ $mode = 'train' ]; then
         --src_dev ./data/$cf_check/src-dev.pkl \
         --tgt_dev ./data/$cf_check/tgt-dev.pkl \
         --epoch_threshold 0 \
-        --lr 1e-3 \
+        --lr 1e-4 \
         --batch_size $batch_size \
         --weight_decay 1e-6 \
         --model $model \

@@ -98,16 +98,16 @@ def validation(data_iter, net, vocab_size, pad, cf=False):
             continue
 
         if cf:
-            output, de = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
+            de, output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
             de_loss = de_criterion(de, label)
             lm_loss = criterion(output[1:].view(-1, vocab_size),
-                                tbatch[1:].view(-1, vocab_size))
-            loss = 0.75 * de_loss + 0.25 * lm_loss
+                                tbatch[1:].contiguous().view(-1))
+            loss = 0.5 * de_loss + 0.5 * lm_loss
             # accuracy of the decision output
             # de: [batch]
             de = (de > 0.5).long()
-            total_acc += torch.sum(de == debatch).item()
-            total_num += len(debatch)
+            total_acc += torch.sum(de == label.long()).item()
+            total_num += len(label)
         else:
             output = net(sbatch, tbatch, turn_lengths)
             loss = criterion(output[1:].view(-1, vocab_size),
