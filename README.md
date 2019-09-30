@@ -1,4 +1,4 @@
-# WhenToSpeak
+# WhenToTalk
 Make the model decide when to utter the utterances in the conversation, which can make the interaction more engaging.
 
 Model architecture:
@@ -16,6 +16,7 @@ Model architecture:
 4. tqdm
 5. [BERTScore](https://github.com/Tiiiger/bert_score)
 6. nltk: word tokenize
+7. [bert-as-service](https://github.com/hanxiao/bert-as-service)
 
 ## Dataset
 Format:
@@ -52,6 +53,13 @@ Create the dataset
 3. w/o Dialogue-sequence
 
 ## How to use
+
+Generate the graph of the context
+
+```python
+# generate the graph information of the train/test/dev dataset
+./run.sh graph cornell when2talk 0
+```
 
 Generate the vocab of the dataset
 

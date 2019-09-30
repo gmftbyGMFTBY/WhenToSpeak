@@ -2,7 +2,7 @@
 # Author: GMFTBY
 # Time: 2019.9.25
 
-mode=$1     # vocab, train, translate, eval
+mode=$1     # vocab, graph, train, translate, eval
 dataset=$2
 model=$3
 cuda=$4
@@ -15,6 +15,9 @@ elif [ $model = 'hred' ]; then
     hierarchical=1
     cf=0
 elif [ $model = 'hred-cf' ]; then
+    hierarchical=1
+    cf=1
+elif [ $model = 'when2talk' ]; then
     hierarchical=1
     cf=1
 else
@@ -44,15 +47,50 @@ echo "========== $mode begin =========="
 if [ $mode = 'vocab' ]; then
     # generate the src vocab
     python utils.py \
+        --mode vocab \
         --file ./data/${dataset}-corpus/cf/src-train.pkl ./data/${dataset}-corpus/cf/src-dev.pkl \
         --vocab ./processed/$dataset/iptvocab.pkl \
         --cutoff 50000
 
     # generate the tgt vocab
     python utils.py \
+        --mode vocab \
         --file ./data/${dataset}-corpus/cf/tgt-train.pkl ./data/${dataset}-corpus/cf/tgt-dev.pkl \
         --vocab ./processed/$dataset/optvocab.pkl \
         --cutoff 50000
+
+elif [ $mode = 'graph' ]; then
+    # generate the graph for the when2talk model
+    echo "[!] create the graph of the $dataset dataset"
+    python utils.py \
+         --mode graph \
+         --src_vocab ./processed/$dataset/iptvocab.pkl \
+         --tgt_vocab ./processed/$dataset/optvocab.pkl \
+         --maxlen $maxlen \
+         --src ./data/${dataset}-corpus/cf/src-train.pkl \
+         --tgt ./data/${dataset}-corpus/cf/tgt-train.pkl \
+         --graph ./processed/$dataset/train-graph.pkl \
+         --threshold 0.75 \
+
+    python utils.py \
+        --mode graph \
+        --src_vocab ./processed/$dataset/iptvocab.pkl \
+        --tgt_vocab ./processed/$dataset/optvocab.pkl \
+        --maxlen $maxlen \
+        --src ./data/${dataset}-corpus/cf/src-test.pkl \
+        --tgt ./data/${dataset}-corpus/cf/tgt-test.pkl \
+        --graph ./processed/$dataset/test-graph.pkl \
+        --threshold 0.75 \
+
+    python utils.py \
+        --mode graph \
+        --src_vocab ./processed/$dataset/iptvocab.pkl \
+        --tgt_vocab ./processed/$dataset/optvocab.pkl \
+        --maxlen $maxlen \
+        --src ./data/${dataset}-corpus/cf/src-dev.pkl \
+        --tgt ./data/${dataset}-corpus/cf/tgt-dev.pkl \
+        --graph ./processed/$dataset/dev-graph.pkl \
+        --threshold 0.75 \
 
 elif [ $mode = 'train' ]; then
     # clear the ckpt, vocab, tensorboard cache
