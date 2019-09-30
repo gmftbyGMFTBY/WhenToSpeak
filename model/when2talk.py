@@ -25,10 +25,10 @@ class Utterance_encoder_w2t(nn.Module):
 
     def __init__(self, input_size, embedding_size, 
                  hidden_size, dropout=0.5, n_layer=1, pretrained=False):
-        super(Utterance_encoder_cf, self).__init__()
+        super(Utterance_encoder_w2t, self).__init__()
 
         self.embedding_size = embedding_size
-        seld.hidden_size = hidden_size
+        self.hidden_size = hidden_size
         self.input_size = input_size
         self.n_layer = n_layer
 
@@ -78,15 +78,15 @@ class GCNContext(nn.Module):
 
     def __init__(self, inpt_size, hidden_size, output_size, posemb_size, ratio=0.8, dropout=0.5):
         # inpt_size: utter_hidden_size + user_embed_size
-        super('GCNContext', self).__init__()
+        super(GCNContext, self).__init__()
         self.conv1 = GCNConv(inpt_size + posemb_size, hidden_size)
-        self.pool1 = TopKPooling(hidden_size, ratio=0.8)
+        # self.pool1 = TopKPooling(hidden_size, ratio=0.8)
         self.conv2 = GCNConv(hidden_size, hidden_size)
-        self.pool2 = TopKPooling(hidden_size, ratio=0.8)
+        # self.pool2 = TopKPooling(hidden_size, ratio=0.8)
         self.conv3 = GCNConv(hidden_size, hidden_size)
-        self.pool3 = TopKPooling(hidden_size, ratio=0.8)
+        # self.pool3 = TopKPooling(hidden_size, ratio=0.8)
 
-        self.linear = nn.Linear(hidden_size * 2, output_size)
+        self.linear = nn.Linear(hidden_size, output_size)
         self.drop = nn.Dropout(p=dropout)
         self.posemb = nn.Embedding(30, posemb_size)    # 30 is far bigger than the max turn lengths
         
@@ -109,7 +109,7 @@ class GCNContext(nn.Module):
         assert len(batch) == 1
         batch = batch[0]    # one big graph (mini-batch in PyG)
         weights = torch.cat(weights)
-        
+
         return batch, weights
 
     def forward(self, gbatch, utter_hidden):
@@ -118,35 +118,38 @@ class GCNContext(nn.Module):
         x, edge_index, batch = batch.x, batch.edge_index, batch.batch
         
         # cat pos_embed: [node, posemb_size]
-        pos, cx, fx = [], 0, 0
         batch_size = torch.max(batch).item() + 1
-        for i in batch:
-            if i.item() == cx:
-                pos.append(fx)
-                fx += 1
-            else:
-                fx = 0
-                cx += 1
-                pos.append(fx)
-        pos = torch.tensor(pos, dtype=torch.long)
+        turn_size = utter_hidden.size(0)
+
+        pos = []
+        for i in range(batch_size):
+            pos.append(torch.arange(turn_size, dtype=torch.long))
+        pos = torch.cat(pos)
+
+        # load to GPU
         if torch.cuda.is_available():
+            x = x.cuda()
+            edge_index = edge_index.cuda()
+            batch = batch.cuda()
+            weights = weights.cuda()
             pos = pos.cuda()    # [node]
-        pos = self.posemb(x)    # [node, pos_emb]
+        
+        pos = self.posemb(pos)    # [node, pos_emb]
         x = torch.cat([x, pos], dim=1)    # [node, pos_emb + hidden_size + user_embed_size]
 
-        x = F.relu(self.conv1(x, edge_index, edge_weight=weights))
-        x, edge_index, _, batch, _ = self.pool1(x, edge_index, None, batch)
-        x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x1 = F.relu(self.conv1(x, edge_index, edge_weight=weights))
+        # x, edge_index, _, batch, _ = self.pool1(x, edge_index, None, batch)
+        # x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
 
-        x = F.relu(self.conv2(x, edge_index, edge_weight=weights))
-        x, edge_index, _, batch, _ = self.pool2(x, edge_index, None, batch)
-        x2 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x2 = F.relu(self.conv2(x1, edge_index, edge_weight=weights))
+        # x, edge_index, _, batch, _ = self.pool2(x, edge_index, None, batch)
+        # x2 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
 
-        x = F.relu(self.conv3(x, edge_index, edge_weight=weights))
-        x, edge_index, _, batch, _ = self.pool3(x, edge_index, None, batch)
-        x3 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x3 = F.relu(self.conv3(x2, edge_index, edge_weight=weights))
+        # x, edge_index, _, batch, _ = self.pool3(x, edge_index, None, batch)
+        # x3 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
 
-        # residual, [nodes, 2 * hidden_size]
+        # residual, [nodes, hidden_size]
         x = x1 + x2 + x3
         x = self.drop(x)
         x = torch.tanh(self.linear(x))    # [nodes, hidden_size]
@@ -161,7 +164,7 @@ class Decoder_w2t(nn.Module):
     
     def __init__(self, output_size, embed_size, hidden_size, user_embed_size=10,
                  pretrained=None):
-        super('Decoder', self).__init__()
+        super(Decoder_w2t, self).__init__()
         self.output_size = output_size
         self.hidden_size = hidden_size
         self.embed_size = embed_size
@@ -189,7 +192,7 @@ class Decoder_w2t(nn.Module):
 
         rnn_inpt = torch.cat([embedded, context], 2)    # [1, batch, embed_size + hidden]
 
-        output, hidden = self.gru(rnn_inpt, last_hidden.unsqueeze(0))
+        output, hidden = self.gru(rnn_inpt, last_hidden.unsqueeze(0).contiguous())
         output = output.squeeze(0)      # [batch, hidden_size]
         context = context.squeeze(0)    # [batch, hidden]
         output = torch.cat([output, context, user_de], 1)    # [batch, hidden * 2 + 1 + user_embed]
@@ -210,14 +213,14 @@ class When2Talk(nn.Module):
     def __init__(self, input_size, output_size, embed_size, utter_hidden_size, 
                  context_hidden_size, decoder_hidden_size, position_embed_size, 
                  user_embed_size=10, teach_force=0.5, pad=0, sos=0, dropout=0.5, utter_n_layer=1):
-        super('When2Talk', self).__init__()
+        super(When2Talk, self).__init__()
         self.teach_force = teach_force
         self.output_size = output_size
         self.pad, self.sos = pad, sos
-        self.utter_encoder = Utternace_encoder_w2t(input_size, embed_size, utter_hidden_size, 
+        self.utter_encoder = Utterance_encoder_w2t(input_size, embed_size, utter_hidden_size, 
                                                    dropout=dropout, n_layer=utter_n_layer) 
         self.gcncontext = GCNContext(utter_hidden_size+user_embed_size, context_hidden_size, 
-                                     context_hidden, position_embed_size, dropout=dropout)
+                                     context_hidden_size, position_embed_size, dropout=dropout)
         self.decoder = Decoder_w2t(output_size, embed_size, decoder_hidden_size, 
                                    user_embed_size=user_embed_size) 
         

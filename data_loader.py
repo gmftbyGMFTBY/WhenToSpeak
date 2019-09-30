@@ -377,7 +377,8 @@ if __name__ == "__main__":
                                                                                     './processed/cornell/train-graph.pkl',
                                                                                     './processed/cornell/iptvocab.pkl',
                                                                                     './processed/cornell/optvocab.pkl', 32, 50):
-        ipdb.set_trace()
+        if len(sbatch) > 4:
+            ipdb.set_trace()
         batch_num += 1
         o = torch.sum(lbatch).item()
         one += o

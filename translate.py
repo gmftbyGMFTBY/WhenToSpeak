@@ -21,6 +21,7 @@ from data_loader import *
 from model.seq2seq_attention import Seq2Seq
 from model.HRED import HRED
 from model.HRED_cf import HRED_cf
+from model.when2talk import When2Talk
 
 
 def translate(**kwargs):
@@ -42,9 +43,15 @@ def translate(**kwargs):
         else:
             func = get_batch_data_flatten
 
-    test_iter = func(kwargs['src_test'], kwargs['tgt_test'],
-                     kwargs['src_vocab'], kwargs['tgt_vocab'],
-                     kwargs['batch_size'], kwargs['maxlen'])
+    if kwargs['graph'] == 0:
+        test_iter = func(kwargs['src_test'], kwargs['tgt_test'],
+                         kwargs['src_vocab'], kwargs['tgt_vocab'],
+                         kwargs['batch_size'], kwargs['maxlen'])
+    else:
+        test_iter = get_batch_data_cf_graph(kwargs['src_test'], kwargs['tgt_test'],
+                                            kwargs['test_graph'], kwargs['src_vocab'],
+                                            kwargs['tgt_vocab'], kwargs['batch_size'],
+                                            kwargs['maxlen'])
 
     # load net
     if kwargs['model'] == 'seq2seq':
@@ -63,6 +70,12 @@ def translate(**kwargs):
                       kwargs['decoder_hidden'], pad=tgt_w2idx['<pad>'],
                       sos=tgt_w2idx['<sos>'], utter_n_layer=kwargs['utter_n_layer'],
                       user_embed_size=kwargs['user_embed_size'])
+    elif kwargs['model'] == 'when2talk':
+        net = when2talk(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
+                        kwargs['utter_hidden'], kwargs['context_hidden'], kwargs['decoder_hidden'],
+                        kwargs['position_embed_size'], user_embed_size=kwargs['user_embed_size'],
+                        sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
+                        utter_n_layer=kwargs['utter_n_layer'])
     else:
         raise Exception('[!] wrong model (seq2seq, hred, hred-cf)')
 
@@ -81,7 +94,10 @@ def translate(**kwargs):
         pbar = tqdm(test_iter)
         for batch in pbar:
             if kwargs['cf'] == 1:
-                sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
+                if kwargs['graph'] == 1:
+                    sbatch, tbatch, gbatch, subatch, tubatch, label, turn_lengths = batch
+                else:
+                    sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
             else:
                 sbatch, tbatch, turn_lengths = batch
 
@@ -94,7 +110,10 @@ def translate(**kwargs):
             
             # output: [maxlen, batch_size], de: [batch]
             if kwargs['cf'] == 1:
-                de, output = net.predict(sbatch, subatch, tubatch, kwargs['tgt_maxlen'], turn_lengths)
+                if kwargs['graph'] == 1:
+                    de, output = net.predict(sbatch, gbatch, subatch, tubatch, kwargs['tgt_maxlen'], turn_lengths)
+                else:
+                    de, output = net.predict(sbatch, subatch, tubatch, kwargs['tgt_maxlen'], turn_lengths)
                 # fix de
                 de = (de > 0.5).long().cpu().tolist()
                 label = label.cpu().tolist()
@@ -198,6 +217,9 @@ if __name__ == "__main__":
     parser.add_argument('--user_embed_size', type=int, default=10, help='user embed size')
     parser.add_argument('--cf', type=int, default=0, help='whether have the classification')
     parser.add_argument('--dataset', type=str, default='ubuntu')
+    parser.add_argument('--position_embed_size', type=int, defualt=30)
+    parser.add_argument('--graph', type=int, default=0)
+    parser.add_argument('--test_graph', type=int, default=None)
 
     args = parser.parse_args()
     

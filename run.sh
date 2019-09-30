@@ -11,18 +11,23 @@ cuda=$4
 if [ $model = 'seq2seq' ]; then
     hierarchical=0
     cf=0
+    graph=0
 elif [ $model = 'hred' ]; then
     hierarchical=1
     cf=0
+    graph=0
 elif [ $model = 'hred-cf' ]; then
     hierarchical=1
     cf=1
+    graph=0
 elif [ $model = 'when2talk' ]; then
     hierarchical=1
     cf=1
+    graph=1
 else
     hierarchical=1
     cf=1
+    graph=0
 fi
 
 # batch_size of hierarchical
@@ -105,6 +110,9 @@ elif [ $mode = 'train' ]; then
         --tgt_test ./data/${dataset}-corpus/$cf_check/tgt-test.pkl \
         --src_dev ./data/${dataset}-corpus/$cf_check/src-dev.pkl \
         --tgt_dev ./data/${dataset}-corpus/$cf_check/tgt-dev.pkl \
+        --train_graph ./processed/$dataset/train-graph.pkl \
+        --test_graph ./processed/$dataset/test-graph.pkl \
+        --dev_graph ./processed/$dataset/dev-graph.pkl \
         --epoch_threshold 0 \
         --lr 1e-4 \
         --batch_size $batch_size \
@@ -128,11 +136,13 @@ elif [ $mode = 'train' ]; then
         --cf $cf \
         --user_embed_size 10 \
         --dataset $dataset \
-
+        --position_embed_size 30 \
+        --graph $graph
 elif [ $mode = 'translate' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
         --src_test ./data/${dataset}-corpus/$cf_check/src-test.pkl \
         --tgt_test ./data/${dataset}-corpus/$cf_check/tgt-test.pkl \
+        --test_graph ./processed/$dataset/test-graph.pkl \
         --epoch_threshold 0 \
         --batch_size $batch_size \
         --model $model \
@@ -151,7 +161,8 @@ elif [ $mode = 'translate' ]; then
         --cf $cf \
         --user_embed_size 10 \
         --dataset $dataset \
-
+        --position_embed_size 30 \
+        --graph $graph
 elif [ $mode = 'eval' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python eval.py \
         --model $model \

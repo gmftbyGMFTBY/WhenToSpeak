@@ -20,13 +20,13 @@ from utils import *
 from data_loader import *
 from model.seq2seq_attention import Seq2Seq
 from model.HRED import HRED
-from model.seq2seq_attention_cf import Seq2Seq_cf
 from model.HRED_cf import HRED_cf
+from model.when2talk import When2Talk
 from model.layers import *
 
 
 def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad, 
-          grad_clip=10, cf=False):
+          grad_clip=10, cf=False, graph=False):
     # choose nll_loss for training the objective function
     net.train()
     total_loss, batch_num = 0.0, 0
@@ -39,7 +39,10 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
         # [turn, length, batch], [seq_len, batch] / [seq_len, batch], [seq_len, batch]
         if cf:
             # [turn, length, batch], [seq_len, batch], [turns, batch], [batch], [batch], [batch]
-            sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
+            if graph:
+                sbatch, tbatch, gbatch, subatch, tubatch, label, turn_lengths = batch
+            else:
+                sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
         else:
             sbatch, tbatch, turn_lengths = batch
         
@@ -52,7 +55,10 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
 
         if cf:
             # output: [seq_len, batch, vocab_size], de: [batch]
-            de, output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
+            if graph:
+                de, output = net(sbatch, tbatch, gbatch, subatch, tubatch, turn_lengths)
+            else:
+                de, output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
             de_loss = de_criterion(de, label)
             lm_loss = criterion(output[1:].view(-1, vocab_size),
                                 tbatch[1:].contiguous().view(-1))
@@ -80,12 +86,11 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
         total_loss += loss.item()
         batch_num += 1
 
-
     # return avg loss
     return round(total_loss / batch_num, 4)
 
 
-def validation(data_iter, net, vocab_size, pad, cf=False):
+def validation(data_iter, net, vocab_size, pad, cf=False, graph=False):
     net.eval()
     batch_num, total_loss, total_acc, total_num = 0, 0.0, 0, 0
     criterion = nn.NLLLoss(ignore_index=pad)
@@ -95,7 +100,10 @@ def validation(data_iter, net, vocab_size, pad, cf=False):
 
     for idx, batch in enumerate(pbar):
         if cf:
-            sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
+            if graph:
+                sbatch, tbatch, gbatch, subatch, tubatch, label, turn_lengths = batch
+            else:
+                sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
         else:
             sbatch, tbatch, turn_lengths = batch
         batch_size = tbatch.shape[1]
@@ -103,7 +111,10 @@ def validation(data_iter, net, vocab_size, pad, cf=False):
             continue
 
         if cf:
-            de, output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
+            if graph:
+                de, output = net(sbatch, tbatch, gbatch, subatch, tubatch, turn_lengths)
+            else:
+                de, output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
             de_loss = de_criterion(de, label)
             lm_loss = criterion(output[1:].view(-1, vocab_size),
                                 tbatch[1:].contiguous().view(-1))
@@ -127,8 +138,8 @@ def validation(data_iter, net, vocab_size, pad, cf=False):
         return round(total_loss / batch_num, 4)
 
 
-def test(data_iter, net, vocab_size, pad, cf=False):
-    return validation(data_iter, net, vocab_size, pad, cf=cf)
+def test(data_iter, net, vocab_size, pad, cf=False, graph=False):
+    return validation(data_iter, net, vocab_size, pad, cf=cf, graph=graph)
 
 
 def main(**kwargs):
@@ -167,6 +178,13 @@ def main(**kwargs):
                       pad=tgt_w2idx['<pad>'], sos=tgt_w2idx['<sos>'], 
                       dropout=kwargs['dropout'], utter_n_layer=kwargs['utter_n_layer'],
                       user_embed_size=kwargs['user_embed_size'])
+    elif kwargs['model'] == 'when2talk':
+        net = When2Talk(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'], 
+                        kwargs['utter_hidden'], kwargs['context_hidden'], kwargs['decoder_hidden'],
+                        kwargs['position_embed_size'], user_embed_size=kwargs['user_embed_size'],
+                        teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
+                        sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'], 
+                        utter_n_layer=kwargs['utter_n_layer'])
     else:
         raise Exception('[!] Wrong model (seq2seq, hred, hred-cf)')
 
@@ -199,24 +217,48 @@ def main(**kwargs):
                 func = get_batch_data_flatten
             else:
                 func = get_batch_data_flatten_cf
-
-        train_iter = func(kwargs['src_train'], kwargs['tgt_train'],
-                          kwargs['src_vocab'], kwargs['tgt_vocab'], 
-                          kwargs['batch_size'], kwargs['maxlen'])
-        test_iter = func(kwargs['src_test'], kwargs['tgt_test'],
-                         kwargs['src_vocab'], kwargs['tgt_vocab'],
-                         kwargs['batch_size'], kwargs['maxlen'])
-        dev_iter = func(kwargs['src_dev'], kwargs['tgt_dev'],
-                        kwargs['src_vocab'], kwargs['tgt_vocab'],
-                        kwargs['batch_size'], kwargs['maxlen'])
+        if kwargs['graph'] == 0:
+            train_iter = func(kwargs['src_train'], kwargs['tgt_train'],
+                              kwargs['src_vocab'], kwargs['tgt_vocab'], 
+                              kwargs['batch_size'], kwargs['maxlen'])
+            test_iter = func(kwargs['src_test'], kwargs['tgt_test'],
+                             kwargs['src_vocab'], kwargs['tgt_vocab'],
+                             kwargs['batch_size'], kwargs['maxlen'])
+            dev_iter = func(kwargs['src_dev'], kwargs['tgt_dev'],
+                            kwargs['src_vocab'], kwargs['tgt_vocab'],
+                            kwargs['batch_size'], kwargs['maxlen'])
+        else:
+            train_iter = get_batch_data_cf_graph(kwargs['src_train'], 
+                                                 kwargs['tgt_train'],
+                                                 kwargs['train_graph'],
+                                                 kwargs['src_vocab'],
+                                                 kwargs['tgt_vocab'],
+                                                 kwargs['batch_size'],
+                                                 kwargs['maxlen'])
+            test_iter = get_batch_data_cf_graph(kwargs['src_test'], 
+                                                kwargs['tgt_test'],
+                                                kwargs['test_graph'],
+                                                kwargs['src_vocab'],
+                                                kwargs['tgt_vocab'],
+                                                kwargs['batch_size'],
+                                                kwargs['maxlen'])
+            dev_iter = get_batch_data_cf_graph(kwargs['src_dev'], 
+                                               kwargs['tgt_dev'],
+                                               kwargs['dev_graph'],
+                                               kwargs['src_vocab'],
+                                               kwargs['tgt_vocab'],
+                                               kwargs['batch_size'],
+                                               kwargs['maxlen'])
 
         writer_str = f'{kwargs["dataset"]}-{kwargs["model"]}-epoch-{epoch}'
         train(writer, writer_str, train_iter, net, optimizer, 
               len(tgt_w2idx), tgt_w2idx['<pad>'], 
-              grad_clip=kwargs['grad_clip'], cf=kwargs['cf']==1)
+              grad_clip=kwargs['grad_clip'], cf=kwargs['cf']==1, 
+              graph=kwargs['graph']==1)
         if kwargs["cf"] == 1:
-            val_loss, val_acc = validation(dev_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], 
-                                           cf=kwargs["cf"]==1)
+            val_loss, val_acc = validation(dev_iter, net, len(tgt_w2idx), 
+                                           tgt_w2idx['<pad>'], cf=kwargs["cf"]==1,
+                                           graph=kwargs['graph']==1)
             writer.add_scalar(f'{kwargs["dataset"]}-{kwargs["model"]}-Acc/dev', val_acc, epoch)
         else:
             val_loss = validation(dev_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], 
@@ -244,7 +286,7 @@ def main(**kwargs):
     # test
     load_best_model(kwargs["dataset"], kwargs['model'], net, threshold=kwargs['epoch_threshold'])
     if kwargs['cf'] == 1:
-        test_loss, test_acc = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs['cf'])
+        test_loss, test_acc = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs['cf'], graph=kwargs['graph']==1)
         print(f'Test loss: {test_loss}, test acc: {test_acc}')
     else:
         test_loss = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs["cf"])
@@ -291,6 +333,11 @@ if __name__ == "__main__":
     parser.add_argument('--cf', type=int, default=0, help='whether have the classification')
     parser.add_argument('--user_embed_size', type=int, default=10, help='cf mode uses this parameter')
     parser.add_argument('--dataset', type=str, default='ubuntu')
+    parser.add_argument('--position_embed_size', type=int, default=20)
+    parser.add_argument('--graph', type=int, default=0)
+    parser.add_argument('--train_graph', type=str, default=None)
+    parser.add_argument('--test_graph', type=str, default=None)
+    parser.add_argument('--dev_graph', type=str, default=None)
 
     args = parser.parse_args()
 
