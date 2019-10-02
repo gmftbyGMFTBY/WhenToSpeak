@@ -46,12 +46,12 @@ def translate(**kwargs):
     if kwargs['graph'] == 0:
         test_iter = func(kwargs['src_test'], kwargs['tgt_test'],
                          kwargs['src_vocab'], kwargs['tgt_vocab'],
-                         kwargs['batch_size'], kwargs['maxlen'])
+                         kwargs['batch_size'], kwargs['maxlen'], plus=kwargs['plus'])
     else:
         test_iter = get_batch_data_cf_graph(kwargs['src_test'], kwargs['tgt_test'],
                                             kwargs['test_graph'], kwargs['src_vocab'],
                                             kwargs['tgt_vocab'], kwargs['batch_size'],
-                                            kwargs['maxlen'])
+                                            kwargs['maxlen'], plus=kwargs['plus'])
 
     # load net
     if kwargs['model'] == 'seq2seq':
@@ -71,11 +71,11 @@ def translate(**kwargs):
                       sos=tgt_w2idx['<sos>'], utter_n_layer=kwargs['utter_n_layer'],
                       user_embed_size=kwargs['user_embed_size'])
     elif kwargs['model'] == 'when2talk':
-        net = when2talk(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
+        net = When2Talk(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
                         kwargs['utter_hidden'], kwargs['context_hidden'], kwargs['decoder_hidden'],
                         kwargs['position_embed_size'], user_embed_size=kwargs['user_embed_size'],
                         sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
-                        utter_n_layer=kwargs['utter_n_layer'])
+                        utter_n_layer=kwargs['utter_n_layer'], bn=kwargs['bn'])
     else:
         raise Exception('[!] wrong model (seq2seq, hred, hred-cf)')
 
@@ -217,9 +217,12 @@ if __name__ == "__main__":
     parser.add_argument('--user_embed_size', type=int, default=10, help='user embed size')
     parser.add_argument('--cf', type=int, default=0, help='whether have the classification')
     parser.add_argument('--dataset', type=str, default='ubuntu')
-    parser.add_argument('--position_embed_size', type=int, defualt=30)
+    parser.add_argument('--position_embed_size', type=int, default=30)
     parser.add_argument('--graph', type=int, default=0)
-    parser.add_argument('--test_graph', type=int, default=None)
+    parser.add_argument('--test_graph', type=str, default=None)
+    parser.add_argument('--plus', type=int, default=0, help='the same as the one in train.py')
+    parser.add_argument('--bn', dest='bn', action='store_true')
+    parser.add_argument('--no-bn', dest='bn', action='store_false')
 
     args = parser.parse_args()
     

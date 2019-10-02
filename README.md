@@ -14,9 +14,8 @@ Model architecture:
 2. [PyG](https://github.com/rusty1s/pytorch_geometric)
 3. numpy
 4. tqdm
-5. [BERTScore](https://github.com/Tiiiger/bert_score)
-6. nltk: word tokenize
-7. [bert-as-service](https://github.com/hanxiao/bert-as-service)
+5. nltk: word tokenize
+6. [bert-as-service](https://github.com/hanxiao/bert-as-service)
 
 ## Dataset
 Format:
@@ -102,35 +101,30 @@ Evaluate the result of the translated utterances
         <th>BLEU4</th>
         <th>Dist-1</th>
         <th>Dist-2</th>
-        <th>BERTScore</th>
       </tr>
       <tr>
         <td>seq2seq</td>
-        <td>0.0405</td>
-        <td>0.0223</td>
-        <td>0.089</td>
-        <td>0.3825</td>
+        <td>0.0803</td>
+        <td>0.0095</td>
+        <td>0.0284</td>
       </tr>
       <tr>
         <td>hred</td>
-        <td>0.04</td>
-        <td>0.0219</td>
-        <td>0.0867</td>
-        <td>0.3758</td>
+        <td>0.0751</td>
+        <td>0.008</td>
+        <td>0.0193</td>
       </tr>
       <tr>
         <td>hred-cf</td>
-        <td>0.0407</td>
-        <td>0.0125</td>
-        <td>0.0585</td>
-        <td>0.3751</td>
+        <td>0.1124</td>
+        <td>0.006</td>
+        <td>0.0158</td>
       </tr>
       <tr>
-        <td>proposed</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>when2talk</td>
+        <td>0.1114</td>
+        <td>0.0037</td>
+        <td>0.0087</td>
       </tr>
     </table>
 

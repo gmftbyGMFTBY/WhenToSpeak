@@ -35,8 +35,13 @@ if [ $hierarchical = 1 ]; then
     batch_size=32
     maxlen=50
 else
-    batch_size=32
-    maxlen=100
+    if [ $model = 'seq2seq' ] && [ $mode = 'translate' ]; then
+        batch_size=32
+        maxlen=100
+    else
+        batch_size=32
+        maxlen=50
+    fi
 fi
 
 # cf_check
@@ -137,7 +142,9 @@ elif [ $mode = 'train' ]; then
         --user_embed_size 10 \
         --dataset $dataset \
         --position_embed_size 30 \
-        --graph $graph
+        --graph $graph \
+        --plus 0 \
+        --bn
 elif [ $mode = 'translate' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
         --src_test ./data/${dataset}-corpus/$cf_check/src-test.pkl \
@@ -162,7 +169,9 @@ elif [ $mode = 'translate' ]; then
         --user_embed_size 10 \
         --dataset $dataset \
         --position_embed_size 30 \
-        --graph $graph
+        --graph $graph \
+        --plus 6 \
+        --bn 
 elif [ $mode = 'eval' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python eval.py \
         --model $model \

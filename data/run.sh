@@ -13,9 +13,10 @@ else
     echo "[!] wrong model (cf / ncf)"
 fi
 
+# dailydialog(5~35), cornell(5~15)
 python process.py \
     --low 5 \
-    --high 15 \
+    --high 35 \
     --dataset $dataset \
     --maxsize 20000 \
     --src_train ${dataset}-corpus/$cf/src-train.pkl \

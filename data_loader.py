@@ -64,6 +64,8 @@ def load_data_flatten(src, tgt, src_vocab, tgt_vocab, maxlen):
         d = []
         for example in data:
             utterances = ' <eou> '.join([i[1] for i in example])
+            utterances = utterances.replace('<0>', '').strip()
+            utterances = utterances.replace('<1>', '').strip()
             line = [vocab['<sos>']] + [vocab.get(w, vocab['<unk>']) for w in nltk.word_tokenize(utterances)] + [vocab['<eos>']]
             if len(line) > maxlen:
                 line = [vocab['<sos>']] + line[-maxlen:]
@@ -76,7 +78,8 @@ def load_data_flatten(src, tgt, src_vocab, tgt_vocab, maxlen):
     return src_dataset, tgt_dataset
 
 
-def get_batch_data_flatten(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen):
+def get_batch_data_flatten(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen, plus=0):
+    # flatten mode donot need plus
     src_w2idx, src_idx2w = load_pickle(src_vocab)
     tgt_w2idx, tgt_idx2w = load_pickle(tgt_vocab)
 
@@ -119,7 +122,7 @@ def get_batch_data_flatten(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen):
         yield sbatch, tbatch, turn_lengths
 
 
-def get_batch_data(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen):
+def get_batch_data(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen, plus=0):
     src_w2idx, src_idx2w = load_pickle(src_vocab)
     tgt_w2idx, tgt_idx2w = load_pickle(tgt_vocab)
 
@@ -144,6 +147,11 @@ def get_batch_data(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen):
         bidx = min(bidx, cidx)
 
         sbatch, tbatch = src_dataset[fidx:bidx], tgt_dataset[fidx:bidx]
+
+        if len(sbatch[0]) < plus:
+            fidx = bidx
+            continue
+
         shuffleidx = np.arange(0, len(sbatch))
         np.random.shuffle(shuffleidx)
         sbatch = [sbatch[idx] for idx in shuffleidx]
@@ -182,7 +190,7 @@ def get_batch_data(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen):
         yield sbatch, tbatch, turn_lengths
 
 
-def get_batch_data_cf(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen):
+def get_batch_data_cf(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen, plus=0):
     '''get batch data of [cf & hierarchical]
     return data:
     - sbatch: [turn, batch, length]
@@ -220,6 +228,11 @@ def get_batch_data_cf(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen):
         bidx = min(bidx, cidx)
 
         sbatch, tbatch, subatch, tubatch, lbatch = src_dataset[fidx:bidx], tgt_dataset[fidx:bidx], src_user[fidx:bidx], tgt_user[fidx:bidx], label[fidx:bidx]
+
+        if len(sbatch[0]) < plus:
+            fidx = bidx
+            continue
+        
         shuffleidx = np.arange(0, len(sbatch))
         np.random.shuffle(shuffleidx)
         sbatch = [sbatch[idx] for idx in shuffleidx]   # [batch, turns, lengths]
@@ -265,7 +278,7 @@ def get_batch_data_cf(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen):
         yield sbatch, tbatch, subatch, tubatch, lbatch, turn_lengths
         
         
-def get_batch_data_cf_graph(src, tgt, graph, src_vocab, tgt_vocab, batch_size, maxlen):
+def get_batch_data_cf_graph(src, tgt, graph, src_vocab, tgt_vocab, batch_size, maxlen, plus=0):
     '''get batch data of [cf & hierarchical & graph]
     return data:
     - sbatch: [turn, batch, length]
@@ -307,6 +320,11 @@ def get_batch_data_cf_graph(src, tgt, graph, src_vocab, tgt_vocab, batch_size, m
 
         sbatch, tbatch, subatch, tubatch, lbatch = src_dataset[fidx:bidx], tgt_dataset[fidx:bidx], src_user[fidx:bidx], tgt_user[fidx:bidx], label[fidx:bidx]
         gbatch = graph[fidx:bidx]
+
+        # check the turn size for the plus experiment mode
+        if len(sbatch[0]) < plus:
+            fidx = bidx
+            continue
         
         shuffleidx = np.arange(0, len(sbatch))
         np.random.shuffle(shuffleidx)
@@ -372,12 +390,12 @@ if __name__ == "__main__":
 
     batch_num, zero, one = 0, 0, 0
     # stat the ratio of the 0 label in the cf mode dataset
-    for sbatch, tbatch, gbatch, subatch, tubatch, lbatch, turn_lengths in get_batch_data_cf_graph('./data/cornell-corpus/cf/src-train.pkl', 
-                                                                                    './data/cornell-corpus/cf/tgt-train.pkl',
-                                                                                    './processed/cornell/train-graph.pkl',
-                                                                                    './processed/cornell/iptvocab.pkl',
-                                                                                    './processed/cornell/optvocab.pkl', 32, 50):
-        if len(sbatch) > 4:
+    for sbatch, tbatch, gbatch, subatch, tubatch, lbatch, turn_lengths in get_batch_data_cf_graph('./data/dailydialog-corpus/cf/src-train.pkl', 
+                                                                                    './data/dailydialog-corpus/cf/tgt-train.pkl',
+                                                                                    './processed/dailydialog/train-graph.pkl',
+                                                                                    './processed/dailydialog/iptvocab.pkl',
+                                                                                    './processed/dailydialog/optvocab.pkl', 32, 50):
+        if batch_num == 6719:
             ipdb.set_trace()
         batch_num += 1
         o = torch.sum(lbatch).item()

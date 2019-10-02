@@ -68,11 +68,6 @@ if __name__ == "__main__":
         candidates.extend(line)
     distinct_1, distinct_2 = cal_Distinct(candidates)
 
-    # BERTScore < 512 for bert
-    # ref = [' '.join(i)[:512] for i in ref]
-    # tgt = [' '.join(i)[:512] for i in tgt]
-    # bert_scores = cal_BERTScore(ref, tgt)
-
     # precision, recall, f1, acc
     if args.cf == 1:
         precision, recall, f1, acc = cal_acc_P_R_F1(tp, fn, fp, tn)

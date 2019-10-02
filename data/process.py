@@ -4,8 +4,6 @@
 
 
 '''
-Process the ubuntu dialogue dataset v1.0 into train test dev dataset
-
 Before you run this script, make sure you clean the folder
 '''
 

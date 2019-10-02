@@ -184,7 +184,7 @@ def main(**kwargs):
                         kwargs['position_embed_size'], user_embed_size=kwargs['user_embed_size'],
                         teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
                         sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'], 
-                        utter_n_layer=kwargs['utter_n_layer'])
+                        utter_n_layer=kwargs['utter_n_layer'], bn=kwargs['bn'])
     else:
         raise Exception('[!] Wrong model (seq2seq, hred, hred-cf)')
 
@@ -220,13 +220,13 @@ def main(**kwargs):
         if kwargs['graph'] == 0:
             train_iter = func(kwargs['src_train'], kwargs['tgt_train'],
                               kwargs['src_vocab'], kwargs['tgt_vocab'], 
-                              kwargs['batch_size'], kwargs['maxlen'])
+                              kwargs['batch_size'], kwargs['maxlen'], plus=kwargs['plus'])
             test_iter = func(kwargs['src_test'], kwargs['tgt_test'],
                              kwargs['src_vocab'], kwargs['tgt_vocab'],
-                             kwargs['batch_size'], kwargs['maxlen'])
+                             kwargs['batch_size'], kwargs['maxlen'], plus=kwargs['plus'])
             dev_iter = func(kwargs['src_dev'], kwargs['tgt_dev'],
                             kwargs['src_vocab'], kwargs['tgt_vocab'],
-                            kwargs['batch_size'], kwargs['maxlen'])
+                            kwargs['batch_size'], kwargs['maxlen'], plus=kwargs['plus'])
         else:
             train_iter = get_batch_data_cf_graph(kwargs['src_train'], 
                                                  kwargs['tgt_train'],
@@ -234,21 +234,23 @@ def main(**kwargs):
                                                  kwargs['src_vocab'],
                                                  kwargs['tgt_vocab'],
                                                  kwargs['batch_size'],
-                                                 kwargs['maxlen'])
+                                                 kwargs['maxlen'], plus=kwargs['plus'])
             test_iter = get_batch_data_cf_graph(kwargs['src_test'], 
                                                 kwargs['tgt_test'],
                                                 kwargs['test_graph'],
                                                 kwargs['src_vocab'],
                                                 kwargs['tgt_vocab'],
                                                 kwargs['batch_size'],
-                                                kwargs['maxlen'])
+                                                kwargs['maxlen'], plus=kwargs['plus'])
             dev_iter = get_batch_data_cf_graph(kwargs['src_dev'], 
                                                kwargs['tgt_dev'],
                                                kwargs['dev_graph'],
                                                kwargs['src_vocab'],
                                                kwargs['tgt_vocab'],
                                                kwargs['batch_size'],
-                                               kwargs['maxlen'])
+                                               kwargs['maxlen'], plus=kwargs['plus'])
+
+        print(f'[!] plus mode for experiment: {kwargs["plus"]}')
 
         writer_str = f'{kwargs["dataset"]}-{kwargs["model"]}-epoch-{epoch}'
         train(writer, writer_str, train_iter, net, optimizer, 
@@ -338,6 +340,10 @@ if __name__ == "__main__":
     parser.add_argument('--train_graph', type=str, default=None)
     parser.add_argument('--test_graph', type=str, default=None)
     parser.add_argument('--dev_graph', type=str, default=None)
+    parser.add_argument('--bn', dest='bn', action='store_true')
+    parser.add_argument('--no-bn', dest='bn', action='store_false')
+    parser.add_argument('--plus', type=int, default=0, 
+                        help='only use the turns that larger than plus_number for training')
 
     args = parser.parse_args()
 
