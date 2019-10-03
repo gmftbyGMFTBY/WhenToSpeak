@@ -53,6 +53,8 @@ def translate(**kwargs):
                                             kwargs['tgt_vocab'], kwargs['batch_size'],
                                             kwargs['maxlen'], plus=kwargs['plus'])
 
+    print(f'[!] plus mode: {kwargs["plus"]}')
+
     # load net
     if kwargs['model'] == 'seq2seq':
         net = Seq2Seq(len(src_w2idx), kwargs['embed_size'], 

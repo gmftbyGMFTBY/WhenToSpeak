@@ -127,8 +127,7 @@ class Decoder_cf(nn.Module):
     the Context encoder hidden size
     '''
 
-    def __init__(self, output_size, embed_size, hidden_size, user_embed_size=10, 
-                 pretrained=None):
+    def __init__(self, output_size, embed_size, hidden_size, pretrained=None):
         super(Decoder_cf, self).__init__()
         self.output_size = output_size
         self.hidden_size = hidden_size
@@ -138,8 +137,11 @@ class Decoder_cf(nn.Module):
             self.embed = PretrainedEmbedding(self.output_size, self.embed_size, pretrained)
         else:
             self.embed = nn.Embedding(self.output_size, self.embed_size)
-        self.gru = nn.GRU(self.embed_size + self.hidden_size, self.hidden_size)
-        self.out = nn.Linear(2 * hidden_size + 1 + user_embed_size, output_size)
+        self.gru = nn.GRU(self.embed_size + self.hidden_size, 
+                          self.hidden_size)
+
+        self.out = nn.Linear(2 * hidden_size, output_size)
+        # self.out = nn.Linear(2 * hidden_size, output_size)
 
         # attention on context encoder
         self.attn = Attention(hidden_size)
@@ -150,7 +152,7 @@ class Decoder_cf(nn.Module):
         init.orthogonal_(self.gru.weight_hh_l0)
         init.orthogonal_(self.gru.weight_ih_l0)
 
-    def forward(self, inpt, last_hidden, encoder_outputs, user_de):
+    def forward(self, inpt, last_hidden, encoder_outputs):
         # inpt: [batch_size], last_hidden: [1, batch, hidden_size]
         # encoder_outputs: [turn_len, batch, hidden_size], user_de: [batch, 11]
         embedded = self.embed(inpt).unsqueeze(0)    # [1, batch_size, embed_size]
@@ -167,7 +169,7 @@ class Decoder_cf(nn.Module):
         output, hidden = self.gru(rnn_input, last_hidden.unsqueeze(0))
         output = output.squeeze(0)    # [batch, hidden_size]
         context = context.squeeze(0)  # [batch, hidden]
-        output = torch.cat([output, context, user_de], 1)    # [batch, 2 * hidden + 11]
+        output = torch.cat([output, context], 1)    # [batch, 2 * hidden]
         output = self.out(output)     # [batch, output_size]
         output = F.log_softmax(output, dim=1)
         return output, hidden
@@ -184,12 +186,13 @@ class HRED_cf(nn.Module):
         self.output_size = output_size
         self.pad, self.sos = pad, sos
         self.utter_encoder = Utterance_encoder_cf(input_size, embed_size, utter_hidden, 
-                                               dropout=dropout, n_layer=utter_n_layer,
-                                               pretrained=pretrained)
-        self.context_encoder = Context_encoder_cf(utter_hidden, context_hidden, dropout=dropout, 
-                                               user_embed_size=user_embed_size) 
+                                                  dropout=dropout, n_layer=utter_n_layer,
+                                                  pretrained=pretrained)
+        self.context_encoder = Context_encoder_cf(utter_hidden, context_hidden, 
+                                                  dropout=dropout, 
+                                                  user_embed_size=user_embed_size) 
         self.decoder = Decoder_cf(output_size, embed_size, decoder_hidden, 
-                               user_embed_size=user_embed_size, pretrained=pretrained)
+                                  pretrained=pretrained)
 
         # user embedding, 10 embedding size
         self.user_emb = nn.Embedding(2, 10)
@@ -198,6 +201,10 @@ class HRED_cf(nn.Module):
         self.decision_1 = nn.Linear(utter_hidden + user_embed_size, int(utter_hidden / 2))
         self.decision_2 = nn.Linear(int(utter_hidden / 2), 1)
         self.decision_drop = nn.Dropout(p=dropout)
+
+        # hidden project
+        self.hidden_proj = nn.Linear(decoder_hidden + user_embed_size, decoder_hidden)
+        self.hidden_drop = nn.Dropout(p=dropout)
 
     def forward(self, src, tgt, subatch, tubatch, lengths):
         # src: [turns, lengths, batch], tgt: [lengths, batch]
@@ -230,15 +237,20 @@ class HRED_cf(nn.Module):
         de = torch.sigmoid(self.decision_2(de)).squeeze(1)    # [batch]
 
         # ========== decoding using he tgt_user & decision information ========== #
-        user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 11]
+        # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 11]
 
         # decoding
         # tgt = tgt.transpose(0, 1)        # [seq_len, batch]
+        # ========== combine the hidden and the tbatch
         hidden = hidden.unsqueeze(0)     # [1, batch, hidden_size]
+        hidden = torch.cat([hidden, tubatch.unsqueeze(0)], 2)     # [1, batch, hidden + 10]
+        hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [1, batch, hidden]
+
         output = tgt[0, :]          # [batch]
 
         for i in range(1, maxlen):
-            output, hidden = self.decoder(output, hidden, context_output, user_de)
+            # output, hidden = self.decoder(output, hidden, context_output, user_de)
+            output, hidden = self.decoder(output, hidden, context_output)
             outputs[i] = output
             is_teacher = random.random() < self.teach_force
             top1 = output.data.max(1)[1]
@@ -282,7 +294,7 @@ class HRED_cf(nn.Module):
         de = torch.sigmoid(self.decision_2(de)).squeeze(1)    # [batch]
 
         # ========== decoding using he tgt_user & decision information ========== #
-        user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 11]
+        # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 11]
 
         hidden = hidden.unsqueeze(0)    # [1, batch, hidden]
         output = torch.zeros(batch_size, dtype=torch.long).fill_(self.sos)
@@ -290,7 +302,8 @@ class HRED_cf(nn.Module):
             output = output.cuda()
 
         for i in range(1, maxlen):
-            output, hidden = self.decoder(output, hidden, context_output, user_de)
+            # output, hidden = self.decoder(output, hidden, context_output, user_de)
+            output, hidden = self.decoder(output, hidden, context_output, tubatch)
             output = output.max(1)[1]
             outputs[i] = output
 

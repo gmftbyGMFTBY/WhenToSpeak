@@ -92,7 +92,7 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
 
 def validation(data_iter, net, vocab_size, pad, cf=False, graph=False):
     net.eval()
-    batch_num, total_loss, total_acc, total_num = 0, 0.0, 0, 0
+    tolm_loss, batch_num, total_loss, total_acc, total_num = 0.0, 0, 0.0, 0, 0
     criterion = nn.NLLLoss(ignore_index=pad)
     de_criterion = nn.BCELoss()
 
@@ -119,6 +119,7 @@ def validation(data_iter, net, vocab_size, pad, cf=False, graph=False):
             lm_loss = criterion(output[1:].view(-1, vocab_size),
                                 tbatch[1:].contiguous().view(-1))
             loss = 0.5 * de_loss + 0.5 * lm_loss
+            tolm_loss += lm_loss.item()
             # accuracy of the decision output
             # de: [batch]
             de = (de > 0.5).long()
@@ -133,7 +134,7 @@ def validation(data_iter, net, vocab_size, pad, cf=False, graph=False):
         batch_num += 1
 
     if cf:
-        return round(total_loss / batch_num, 4), round(total_acc / total_num, 4)
+        return round(tolm_loss / batch_num, 4), round(total_acc / total_num, 4)
     else:
         return round(total_loss / batch_num, 4)
 
@@ -289,7 +290,7 @@ def main(**kwargs):
     load_best_model(kwargs["dataset"], kwargs['model'], net, threshold=kwargs['epoch_threshold'])
     if kwargs['cf'] == 1:
         test_loss, test_acc = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs['cf'], graph=kwargs['graph']==1)
-        print(f'Test loss: {test_loss}, test acc: {test_acc}')
+        print(f'Test lm loss: {test_loss}, test ppl: {round(math.exp(test_loss), 4)}, test acc: {test_acc}')
     else:
         test_loss = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs["cf"])
         print(f'Test loss: {test_loss}, test_ppl: {round(math.exp(test_loss), 4)}')
