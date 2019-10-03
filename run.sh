@@ -32,14 +32,14 @@ fi
 
 # batch_size of hierarchical
 if [ $hierarchical = 1 ]; then
-    batch_size=48
+    batch_size=64
     maxlen=50
 else
     if [ $model = 'seq2seq' ] && [ $mode = 'translate' ]; then
-        batch_size=48
+        batch_size=64
         maxlen=100
     else
-        batch_size=48
+        batch_size=64
         maxlen=50
     fi
 fi

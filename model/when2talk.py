@@ -13,7 +13,6 @@ import torch.nn.functional as F
 import torch.nn.init as init
 from torch_geometric.nn import GCNConv, TopKPooling
 from torch_geometric.data import Data, DataLoader    # create the graph batch dynamically
-from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 import numpy as np
 import random
 import math
@@ -146,16 +145,8 @@ class GCNContext(nn.Module):
 
         if self.bn:
             x1 = F.relu(self.bn1(self.conv1(x, edge_index, edge_weight=weights)))
-            # x, edge_index, _, batch, _ = self.pool1(x, edge_index, None, batch)
-            # x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
-            
             x2 = F.relu(self.bn2(self.conv2(x1, edge_index, edge_weight=weights)))
-            # x, edge_index, _, batch, _ = self.pool2(x, edge_index, None, batch)
-            # x2 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
-            
             x3 = F.relu(self.bn3(self.conv3(x2, edge_index, edge_weight=weights)))
-            # x, edge_index, _, batch, _ = self.pool3(x, edge_index, None, batch)
-            # x3 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
         else:
             x1 = F.relu(self.conv1(x, edge_index, edge_weight=weights))
             x2 = F.relu(self.conv1(x1, edge_index, edge_weight=weights))
@@ -182,7 +173,7 @@ class Decoder_w2t(nn.Module):
         self.embed_size = embed_size
         self.embed = nn.Embedding(self.output_size, self.embed_size)
         self.gru = nn.GRU(self.embed_size + self.hidden_size, self.hidden_size)
-        self.out = nn.Linear(2 * hidden_size + 1 + user_embed_size, output_size)
+        self.out = nn.Linear(hidden_size, output_size)
 
         self.attn = Attention(hidden_size)
         self.init_weight()
@@ -191,7 +182,7 @@ class Decoder_w2t(nn.Module):
         init.orthogonal_(self.gru.weight_hh_l0)
         init.orthogonal_(self.gru.weight_ih_l0)
         
-    def forward(self, inpt, last_hidden, gcncontext, user_de):
+    def forward(self, inpt, last_hidden, gcncontext):
         # inpt: [batch_size], last_hidden: [1, batch, hidden_size]
         # gcncontext: [turn_len, batch, hidden_size], user_de: [batch, 11]
         embedded = self.embed(inpt).unsqueeze(0)    # [1, batch_size, embed_size]
@@ -206,9 +197,8 @@ class Decoder_w2t(nn.Module):
 
         output, hidden = self.gru(rnn_inpt, last_hidden.unsqueeze(0).contiguous())
         output = output.squeeze(0)      # [batch, hidden_size]
-        context = context.squeeze(0)    # [batch, hidden]
-        output = torch.cat([output, context, user_de], 1)    # [batch, hidden * 2 + 1 + user_embed]
-
+        # context = context.squeeze(0)    # [batch, hidden]
+        # output = torch.cat([output, context, user_de], 1)    # [batch, hidden * 2 + 1 + user_embed]
         output = self.out(output)   # [batch, output_size]
         output = F.log_softmax(output, dim=1)
 
@@ -243,6 +233,11 @@ class When2Talk(nn.Module):
         self.decision_1 = nn.Linear(context_hidden_size + user_embed_size, int(context_hidden_size / 2))
         self.decision_2 = nn.Linear(int(context_hidden_size / 2), 1)
         self.decision_drop = nn.Dropout(p=dropout)
+
+        # hidden project
+        self.hidden_proj = nn.Linear(context_hidden_size + user_embed_size, 
+                                     decoder_hidden_size)
+        self.hidden_drop = nn.Dropout(p=dropout)
         
     def forward(self, src, tgt, gbatch, subatch, tubatch, lengths):
         '''
@@ -282,14 +277,18 @@ class When2Talk(nn.Module):
         de = torch.sigmoid(self.decision_2(de)).squeeze(1)     # [batch]
 
         # ========== decoding with the tgt_user & decision information ==========
-        user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 1 + user_embed_size]
+        # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 1 + user_embed_size]
+
+        # ========== hidden project ==========
+        hidden = torch.cat([hidden, tubatch], 1)    # [batch, hidden+user_embed]
+        hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [batch, hidden]
 
         # decoding step
         hidden = hidden.unsqueeze(0)     # [1, batch, hidden_size]
         output  = tgt[0, :]
 
         for i in range(1, maxlen):
-            output, hidden = self.decoder(output, hidden, context_output, user_de)
+            output, hidden = self.decoder(output, hidden, context_output)
             outputs[i] = output
             is_teacher = random.random() < self.teach_force
             top1 = output.data.max(1)[1]
@@ -333,7 +332,11 @@ class When2Talk(nn.Module):
         de = torch.sigmoid(self.decision_2(de)).squeeze(1)     # [batch]
 
         # ========== decoding with tgt_user & decision information ==========
-        user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)     # [batch, 1 + embed_size]
+        # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)     # [batch, 1 + embed_size]
+
+        # ========== hidden project ==========
+        hidden = torch.cat([hidden, tubatch], 1)    # [batch, hidden+user_embed]
+        hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [batch, hidden]
 
         hidden = hidden.unsqueeze(0)     # [1, batch, hidden]
         output = torch.zeros(batch_size, dtype=torch.long).fill_(self.sos)
@@ -341,7 +344,7 @@ class When2Talk(nn.Module):
             output = output.cuda()
         
         for i in range(1, maxlen):
-            output, hidden = self.decoder(output, hidden, context_output, user_de)
+            output, hidden = self.decoder(output, hidden, context_output)
             output = output.max(1)[1]
             outputs[i] = output
 

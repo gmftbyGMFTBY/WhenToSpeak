@@ -100,7 +100,7 @@ class Decoder(nn.Module):
             self.embed = nn.Embedding(output_size, embed_size)
         self.attention = Attention(hidden_size) 
         self.rnn = nn.GRU(hidden_size + embed_size, hidden_size)
-        self.out = nn.Linear(hidden_size * 2, output_size)
+        self.out = nn.Linear(hidden_size, output_size)
         
         self.init_weight()
         
@@ -124,9 +124,9 @@ class Decoder(nn.Module):
         rnn_input = torch.cat([embedded, context], 2)
         output, hidden = self.rnn(rnn_input, last_hidden.unsqueeze(0))
         output = output.squeeze(0)
-        context = context.squeeze(0)
+        # context = context.squeeze(0)
         # [batch, hidden * 2]
-        output = self.out(torch.cat([output, context], 1))
+        output = self.out(output)    # [batch, output_size]
         output = F.log_softmax(output, dim=1)
         
         # output: [batch, output_size]
