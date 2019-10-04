@@ -185,7 +185,8 @@ def main(**kwargs):
                         kwargs['position_embed_size'], user_embed_size=kwargs['user_embed_size'],
                         teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
                         sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'], 
-                        utter_n_layer=kwargs['utter_n_layer'], bn=kwargs['bn'])
+                        utter_n_layer=kwargs['utter_n_layer'],
+                        contextrnn=kwargs['contextrnn'])
     else:
         raise Exception('[!] Wrong model (seq2seq, hred, hred-cf)')
 
@@ -278,7 +279,7 @@ def main(**kwargs):
         else:
             patience += 1
         
-        pbar.set_description(f'Epoch: {epoch}, val_loss: {val_loss}, patience: {patience}/{kwargs["patience"]}')
+        pbar.set_description(f'Epoch: {epoch}, val_loss: {val_loss}, val_ppl: {round(math.exp(val_loss), 4)}, patience: {patience}/{kwargs["patience"]}')
 
         if patience > kwargs['patience']:
             print(f'Early Stop {kwargs["patience"]} at epoch {epoch}')
@@ -341,10 +342,10 @@ if __name__ == "__main__":
     parser.add_argument('--train_graph', type=str, default=None)
     parser.add_argument('--test_graph', type=str, default=None)
     parser.add_argument('--dev_graph', type=str, default=None)
-    parser.add_argument('--bn', dest='bn', action='store_true')
-    parser.add_argument('--no-bn', dest='bn', action='store_false')
     parser.add_argument('--plus', type=int, default=0, 
                         help='only use the turns that larger than plus_number for training')
+    parser.add_augument('--contextrnn', dest='contextrnn', action='store_true')
+    parser.add_augument('--no-contextrnn', dest='contextrnn', action='store_false')
 
     args = parser.parse_args()
 

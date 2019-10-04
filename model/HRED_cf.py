@@ -243,7 +243,7 @@ class HRED_cf(nn.Module):
         # tgt = tgt.transpose(0, 1)        # [seq_len, batch]
         # ========== combine the hidden and the tbatch
         hidden = hidden.unsqueeze(0)     # [1, batch, hidden_size]
-        hidden = torch.cat([hidden, tubatch.unsqueeze(0)], 2)     # [1, batch, hidden + 10]
+        hidden = torch.cat([hidden, tubatch.unsqueeze(0)], 2)     # [1, batch, hidden + 10 + 1]
         hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [1, batch, hidden]
 
         output = tgt[0, :]          # [batch]
@@ -297,13 +297,16 @@ class HRED_cf(nn.Module):
         # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 11]
 
         hidden = hidden.unsqueeze(0)    # [1, batch, hidden]
+        hidden = torch.cat([hidden, tubatch.unsqueeze(0)], 2)     # [1, batch, hidden + 10 + 1]
+        hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [1, batch, hidden]
+
         output = torch.zeros(batch_size, dtype=torch.long).fill_(self.sos)
         if torch.cuda.is_available():
             output = output.cuda()
 
         for i in range(1, maxlen):
             # output, hidden = self.decoder(output, hidden, context_output, user_de)
-            output, hidden = self.decoder(output, hidden, context_output, tubatch)
+            output, hidden = self.decoder(output, hidden, context_output)
             output = output.max(1)[1]
             outputs[i] = output
 

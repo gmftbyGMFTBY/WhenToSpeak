@@ -14,8 +14,7 @@ Model architecture:
 2. [PyG](https://github.com/rusty1s/pytorch_geometric)
 3. numpy
 4. tqdm
-5. nltk: word tokenize
-6. [bert-as-service](https://github.com/hanxiao/bert-as-service)
+5. nltk: word tokenize and sent tokenize
 
 ## Dataset
 Format:
@@ -36,18 +35,18 @@ Create the dataset
 ```
 
 ## Metric
-1. F1: timing of speaking
-2. BERTScore: Utterance quality
+1. Language Model: BLEU4, PPL, Distinct-1, Distinct-2
+2. Talk timing: F1, Acc
 3. Human Evaluation: Engaging evaluation
 
 ## Baselines
 ### 1. Traditional methods
 
-1. Seq2Seq / Seq2Seq + CF
+1. Seq2Seq
 2. HRED / HRED + CF
 
 ### 2. Graph ablation learning
-1. w/o PMI
+1. w/o BERT Embedding cosine similarity
 2. w/o User-sequence
 3. w/o Dialogue-sequence
 
@@ -97,46 +96,173 @@ Evaluate the result of the translated utterances
     
     <table align="center">
       <tr>
-        <th>Models</th>
-        <th>BLEU4</th>
-        <th>Dist-1</th>
-        <th>Dist-2</th>
+        <th align="center" rowspan="2">Model</th>
+        <th align="center" colspan="4">Dailydialog</th>
+        <th align="center" colspan="4">Cornell</th>
       </tr>
       <tr>
-        <td>seq2seq</td>
-        <td>0.0803</td>
-        <td>0.0095</td>
-        <td>0.0284</td>
+        <td align="center">BLEU</td>
+        <td align="center">Dist-1</td>
+        <td align="center">Dist-2</td>
+        <td align="center">PPL</td>
+        <td align="center">BLEU</td>
+        <td align="center">Dist-1</td>
+        <td align="center">Dist-2</td>
+        <td align="center">PPL</td>
       </tr>
       <tr>
-        <td>hred</td>
-        <td>0.0751</td>
-        <td>0.008</td>
-        <td>0.0193</td>
+        <td align="center">Seq2Seq</td>
+        <td>0.1038</td>
+        <td>0.0178</td>
+        <td>0.072</td>
+        <td>29.0640</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
       </tr>
       <tr>
-        <td>hred-cf</td>
-        <td>0.1124</td>
-        <td>0.006</td>
-        <td>0.0158</td>
+        <td align="center">HRED</td>
+        <td>0.1175</td>
+        <td>0.0176</td>
+        <td>0.0576</td>
+        <td>29.7402</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
       </tr>
       <tr>
-        <td>when2talk</td>
-        <td>0.1114</td>
-        <td>0.0037</td>
-        <td>0.0087</td>
+        <td align="center">HRED-CF</td>
+        <td>0.1276</td>
+        <td>0.0274</td>
+        <td>0.0817</td>
+        <td>22.4121</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td align="center">When2Talk</td>
+        <td>0.1243</td>
+        <td>0.0109</td>
+        <td>0.0280</td>
+        <td>24.0059</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
       </tr>
     </table>
 
 
 * F1 metric for measuring the accuracy for the timing of the speaking, only for classified methods (hred-cf, ...). The stat data shows that the number of the negative label is the half of the number of the positive label. **F1** and **Acc** maybe suitable for mearusing the result instead of the F1. In this settings, we care more about the precision in F1 metric.
 
+    <table align="center">
+      <tr>
+        <th align="center" rowspan="2">Model</th>
+        <th align="center" colspan="2">Dailydialog</th>
+        <th align="center" colspan="2">Cornell</th>
+      </tr>
+      <tr>
+        <td align="center">Acc</td>
+        <td align="center">F1</td>
+        <td align="center">Acc</td>
+        <td align="center">F1</td>
+      </tr>
+      <tr>
+        <td>HRED-CF</td>
+        <td>0.8222</td>
+        <td>0.8645</td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>When2Talk</td>
+        <td>0.8067</td>
+        <td>0.8578</td>
+        <td></td>
+        <td></td>
+      </tr>
+    </table>
+
+
 2. Human judgments (engaging, ...)
     
     Invit the volunteer to chat with these models (seq2seq, hred, seq2seq-cf, hred-cf,) and score the models' performance accorading to the **Engaging**, **Fluent**, ...
+    
+    * Dailydialog dataset
+        <table>
+          <tr>
+            <th align="center" rowspan="2">Model</th>
+            <th align="center" colspan="3">When2Talk vs.</th>
+            <th rowspan="2">kappa</th>
+          </tr>
+          <tr>
+            <td>win(%)</td>
+            <td>loss(%)</td>
+            <td>tie(%)</td>
+          </tr>
+          <tr>
+            <td>Seq2Seq</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>HRED</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>HRED-CF</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+        </table>
+        
+    * Cornell dataset
+        <table>
+          <tr>
+            <th align="center" rowspan="2">Model</th>
+            <th align="center" colspan="3">When2Talk vs.</th>
+            <th rowspan="2">kappa</th>
+          </tr>
+          <tr>
+            <td>win(%)</td>
+            <td>loss(%)</td>
+            <td>tie(%)</td>
+          </tr>
+          <tr>
+            <td>Seq2Seq</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>HRED</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>HRED-CF</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+        </table>
 
 3. Graph ablation learning
-
-* F1 accuracy of predicting the speaking timing (hred-cf,)
-* BLEU4, BERTScore, Distinct-1, Distinct-2
+    * F1 accuracy of predicting the speaking timing (hred-cf,)
+    * BLEU4, BERTScore, Distinct-1, Distinct-2
 

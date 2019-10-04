@@ -81,6 +81,7 @@ elif [ $mode = 'graph' ]; then
          --tgt ./data/${dataset}-corpus/cf/tgt-train.pkl \
          --graph ./processed/$dataset/train-graph.pkl \
          --threshold 0.75 \
+         --bidir
 
     python utils.py \
         --mode graph \
@@ -91,6 +92,7 @@ elif [ $mode = 'graph' ]; then
         --tgt ./data/${dataset}-corpus/cf/tgt-test.pkl \
         --graph ./processed/$dataset/test-graph.pkl \
         --threshold 0.75 \
+        --bidir
 
     python utils.py \
         --mode graph \
@@ -101,6 +103,7 @@ elif [ $mode = 'graph' ]; then
         --tgt ./data/${dataset}-corpus/cf/tgt-dev.pkl \
         --graph ./processed/$dataset/dev-graph.pkl \
         --threshold 0.75 \
+        --bidir
 
 elif [ $mode = 'train' ]; then
     # clear the ckpt, vocab, tensorboard cache
@@ -144,7 +147,8 @@ elif [ $mode = 'train' ]; then
         --position_embed_size 30 \
         --graph $graph \
         --plus 0 \
-        --bn
+        --no-contextrnn 
+
 elif [ $mode = 'translate' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
         --src_test ./data/${dataset}-corpus/$cf_check/src-test.pkl \
@@ -171,7 +175,8 @@ elif [ $mode = 'translate' ]; then
         --position_embed_size 30 \
         --graph $graph \
         --plus 6 \
-        --bn 
+        --no-contextrnn
+
 elif [ $mode = 'eval' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python eval.py \
         --model $model \

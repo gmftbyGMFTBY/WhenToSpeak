@@ -283,6 +283,7 @@ def get_batch_data_cf_graph(src, tgt, graph, src_vocab, tgt_vocab, batch_size, m
     return data:
     - sbatch: [turn, batch, length]
     - tbatch: [batch, length]
+    - gbatch: [batch, ([2, num_edge], [num_edge])]
     - subatch: [batch], src user
     - tubatch: [batch], tgt user
     - label: [batch], speaking timing

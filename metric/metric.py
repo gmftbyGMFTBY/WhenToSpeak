@@ -5,7 +5,6 @@ from nltk.probability import FreqDist
 import argparse
 import codecs
 import numpy as np
-from bert_score import score
 import math
 
 

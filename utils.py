@@ -69,7 +69,7 @@ def load_best_model(dataset, model, net, threshold):
         raise Exception('[!] No saved model')
 
 
-def create_the_graph(turns, bc, weights=[1, 0.5], threshold=0.75):
+def create_the_graph(turns, bc, weights=[1, 0.5], threshold=0.75, bidir=True):
     '''create the weighted directed graph of one conversation
     sequenutial edge, user connected edge, [BERT/PMI] edge
     param: turns: [turns(user, utterance)]
@@ -130,10 +130,15 @@ def create_the_graph(turns, bc, weights=[1, 0.5], threshold=0.75):
         e[1].append(tgt)
         w.append(max(edges[(src, tgt)]))
 
+        if bidir:
+            e[0].append(tgt)
+            e[1].append(src)
+            w.append(max(edges[(src, tgt)]))
+
     return (e, w), se, ue, pe
 
 
-def generate_graph(dialogs, path, threshold=0.75):
+def generate_graph(dialogs, path, threshold=0.75, bidir=True):
     # dialogs: [datasize, turns]
     # return: [datasize, (2, num_edges)/ (num_edges)]
     # **make sure the bert-as-service is running**
@@ -141,7 +146,7 @@ def generate_graph(dialogs, path, threshold=0.75):
     edges = []
     se, ue, pe = 0, 0, 0
     for dialog in tqdm(dialogs):
-        edge, ses, ueu, pep = create_the_graph(dialog, bc, threshold=threshold)
+        edge, ses, ueu, pep = create_the_graph(dialog, bc, threshold=threshold, bidir=bidir)
         se += ses
         ue += ueu
         pe += pep
@@ -272,6 +277,8 @@ if __name__ == "__main__":
     parser.add_argument('--tgt_vocab', type=str, default=None)
     parser.add_argument('--src', type=str, default=None)
     parser.add_argument('--tgt', type=str, default=None)
+    parser.add_argument('--bidir', dest='bidir', action='store_true')
+    parser.add_argument('--no-bidir', dest='bidir', action='store_false')
     args = parser.parse_args()
 
     if args.mode == 'vocab':
@@ -282,4 +289,4 @@ if __name__ == "__main__":
         print(f'[!] load the cf mode dataset, prepare for preprocessing')
         ppdataset = idx2sent(src_dataset, src_user, args.src_vocab)
         print(f'[!] begin to create the graph')
-        generate_graph(ppdataset, args.graph, threshold=args.threshold)
+        generate_graph(ppdataset, args.graph, threshold=args.threshold, bidir=args.bidir)
