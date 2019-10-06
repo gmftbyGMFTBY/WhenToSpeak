@@ -90,9 +90,9 @@ Evaluate the result of the translated utterances
 
 1. Automatic evaluation
 
-* Compare the PPL, BLEU4, Disctint-1, Distinct-2 score for all the models.
+    * Compare the PPL, BLEU4, Disctint-1, Distinct-2 score for all the models.
     
-    Proposed classified methods need to be cascaded to calculate the BLEU4, BERTScore (the same format as the traditional models' results)
+        Proposed classified methods need to be cascaded to calculate the BLEU4, BERTScore (the same format as the traditional models' results)
     
     <table align="center">
       <tr>
@@ -116,10 +116,10 @@ Evaluate the result of the translated utterances
         <td>0.0178</td>
         <td>0.072</td>
         <td>29.0640</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>0.0843</td>
+        <td>0.0052</td>
+        <td>0.0164</td>
+        <td>45.1504</td>
       </tr>
       <tr>
         <td align="center">HRED</td>
@@ -127,10 +127,10 @@ Evaluate the result of the translated utterances
         <td>0.0176</td>
         <td>0.0576</td>
         <td>29.7402</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>0.0823</td>
+        <td>0.0227</td>
+        <td>0.0524</td>
+        <td>39.9009</td>
       </tr>
       <tr>
         <td align="center">HRED-CF</td>
@@ -138,17 +138,28 @@ Evaluate the result of the translated utterances
         <td>0.0274</td>
         <td>0.0817</td>
         <td>22.4121</td>
+        <td>0.1116</td>
+        <td>0.0094</td>
+        <td>0.0228</td>
+        <td>38.2598</td>
+      </tr>
+      <tr>
+        <td align="center">When2Talk</td>
+        <td>0.1226</td>
+        <td>0.0211</td>
+        <td>0.0608</td>
+        <td>24.0131</td>
         <td></td>
         <td></td>
         <td></td>
         <td></td>
       </tr>
       <tr>
-        <td align="center">When2Talk</td>
-        <td>0.1243</td>
-        <td>0.0109</td>
-        <td>0.0280</td>
-        <td>24.0059</td>
+        <td align="center">GCNRNN</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
         <td></td>
         <td></td>
         <td></td>
@@ -156,8 +167,7 @@ Evaluate the result of the translated utterances
       </tr>
     </table>
 
-
-* F1 metric for measuring the accuracy for the timing of the speaking, only for classified methods (hred-cf, ...). The stat data shows that the number of the negative label is the half of the number of the positive label. **F1** and **Acc** maybe suitable for mearusing the result instead of the F1. In this settings, we care more about the precision in F1 metric.
+    * F1 metric for measuring the accuracy for the timing of the speaking, only for classified methods (hred-cf, ...). The stat data shows that the number of the negative label is the half of the number of the positive label. **F1** and **Acc** maybe suitable for mearusing the result instead of the F1. In this settings, we care more about the precision in F1 metric.
 
     <table align="center">
       <tr>
@@ -175,13 +185,20 @@ Evaluate the result of the translated utterances
         <td>HRED-CF</td>
         <td>0.8222</td>
         <td>0.8645</td>
+        <td>0.7708</td>
+        <td>0.8427</td>
+      </tr>
+      <tr>
+        <td>When2Talk</td>
+        <td>0.7992</td>
+        <td>0.8507</td>
         <td></td>
         <td></td>
       </tr>
       <tr>
-        <td>When2Talk</td>
-        <td>0.8067</td>
-        <td>0.8578</td>
+        <td>GCNRNN</td>
+        <td></td>
+        <td></td>
         <td></td>
         <td></td>
       </tr>

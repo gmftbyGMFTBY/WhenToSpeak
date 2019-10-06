@@ -108,7 +108,10 @@ def create_the_graph(turns, bc, weights=[1, 0.5], threshold=0.75, bidir=True):
     for user, utterance in turns:
         utterance = utterance.replace('<0>', '').strip()
         utterance = utterance.replace('<1>', '').strip()
-        utterances.append(utterance)
+        if utterance:
+            utterances.append(utterance)
+        else:
+            utterances.append('<unk>')
     utterances = bc.encode(utterances)    # [turn_len, 768]
 
     for i in range(turn_len):

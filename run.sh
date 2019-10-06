@@ -7,6 +7,13 @@ dataset=$2
 model=$3
 cuda=$4
 
+# dataset for plus
+if [ $dataset = 'cornell' ]; then
+    plus=4
+else
+    plus=6
+fi
+
 # hierarchical
 if [ $model = 'seq2seq' ]; then
     hierarchical=0
@@ -21,6 +28,10 @@ elif [ $model = 'hred-cf' ]; then
     cf=1
     graph=0
 elif [ $model = 'when2talk' ]; then
+    hierarchical=1
+    cf=1
+    graph=1
+elif [ $model = 'GCNRNN' ]; then
     hierarchical=1
     cf=1
     graph=1
@@ -147,7 +158,7 @@ elif [ $mode = 'train' ]; then
         --position_embed_size 30 \
         --graph $graph \
         --plus 0 \
-        --no-contextrnn 
+        --contextrnn 
 
 elif [ $mode = 'translate' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
@@ -174,8 +185,8 @@ elif [ $mode = 'translate' ]; then
         --dataset $dataset \
         --position_embed_size 30 \
         --graph $graph \
-        --plus 6 \
-        --no-contextrnn
+        --plus $plus \
+        --contextrnn
 
 elif [ $mode = 'eval' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python eval.py \

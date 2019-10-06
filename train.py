@@ -22,6 +22,7 @@ from model.seq2seq_attention import Seq2Seq
 from model.HRED import HRED
 from model.HRED_cf import HRED_cf
 from model.when2talk import When2Talk
+from model.GCNRNN import GCNRNN
 from model.layers import *
 
 
@@ -181,12 +182,21 @@ def main(**kwargs):
                       user_embed_size=kwargs['user_embed_size'])
     elif kwargs['model'] == 'when2talk':
         net = When2Talk(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'], 
-                        kwargs['utter_hidden'], kwargs['context_hidden'], kwargs['decoder_hidden'],
-                        kwargs['position_embed_size'], user_embed_size=kwargs['user_embed_size'],
+                        kwargs['utter_hidden'], kwargs['context_hidden'],
+                        kwargs['decoder_hidden'], kwargs['position_embed_size'],
+                        user_embed_size=kwargs['user_embed_size'],
                         teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
                         sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'], 
                         utter_n_layer=kwargs['utter_n_layer'],
                         contextrnn=kwargs['contextrnn'])
+    elif kwargs['model'] == 'GCNRNN':
+        net = GCNRNN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
+                     kwargs['utter_hidden'], kwargs['context_hidden'],
+                     kwargs['decoder_hidden'], kwargs['position_embed_size'],
+                     user_embed_size=kwargs['user_embed_size'],
+                     teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
+                     sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'],
+                     utter_n_layer=kwargs['utter_n_layer'])
     else:
         raise Exception('[!] Wrong model (seq2seq, hred, hred-cf)')
 
@@ -344,8 +354,8 @@ if __name__ == "__main__":
     parser.add_argument('--dev_graph', type=str, default=None)
     parser.add_argument('--plus', type=int, default=0, 
                         help='only use the turns that larger than plus_number for training')
-    parser.add_augument('--contextrnn', dest='contextrnn', action='store_true')
-    parser.add_augument('--no-contextrnn', dest='contextrnn', action='store_false')
+    parser.add_argument('--contextrnn', dest='contextrnn', action='store_true')
+    parser.add_argument('--no-contextrnn', dest='contextrnn', action='store_false')
 
     args = parser.parse_args()
 

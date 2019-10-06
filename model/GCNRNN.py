@@ -21,7 +21,7 @@ from .layers import *
 import ipdb
 
 
-class Utterance_encoder_w2t(nn.Module):
+class Utterance_encoder_gn(nn.Module):
     
     '''
     Bidirectional GRU
@@ -29,7 +29,7 @@ class Utterance_encoder_w2t(nn.Module):
 
     def __init__(self, input_size, embedding_size, 
                  hidden_size, dropout=0.5, n_layer=1, pretrained=False):
-        super(Utterance_encoder_w2t, self).__init__()
+        super(Utterance_encoder_gn, self).__init__()
 
         self.embedding_size = embedding_size
         self.hidden_size = hidden_size
@@ -68,7 +68,7 @@ class Utterance_encoder_w2t(nn.Module):
         return hidden    # [batch, hidden]
 
         
-class GCNContext(nn.Module):
+class GCNRNNContext(nn.Module):
 
     '''
     GCN Context encoder
@@ -82,7 +82,7 @@ class GCNContext(nn.Module):
 
     def __init__(self, inpt_size, hidden_size, output_size, posemb_size, dropout=0.5):
         # inpt_size: utter_hidden_size + user_embed_size
-        super(GCNContext, self).__init__()
+        super(GCNRNNContext, self).__init__()
         self.conv1 = GCNConv(inpt_size + posemb_size, hidden_size)
         self.conv2 = GCNConv(hidden_size, hidden_size)
         self.conv3 = GCNConv(hidden_size, hidden_size)
@@ -90,7 +90,10 @@ class GCNContext(nn.Module):
         self.bn2 = nn.BatchNorm1d(num_features=hidden_size)
         self.bn3 = nn.BatchNorm1d(num_features=hidden_size)
 
-        self.linear = nn.Linear(hidden_size, output_size)
+        # rnn for background
+        self.rnn = nn.GRU(inpt_size, hidden_size)
+
+        self.linear = nn.Linear(hidden_size * 2, output_size)
         self.drop = nn.Dropout(p=dropout)
         self.posemb = nn.Embedding(100, posemb_size)    # 100 is far bigger than the max turn lengths
         
@@ -148,19 +151,23 @@ class GCNContext(nn.Module):
         # residual for overcoming over-smoothing, [nodes, hidden_size]
         x = x1 + x2 + x3
         x = self.drop(x)
-        x = torch.tanh(self.linear(x))    # [nodes, hidden_size]
+
+        # rnn_x: [turn, batch, hidden_size]
+        rnn_x, _ = self.rnn(utter_hidden)
 
         # [nodes/turn_len, output_size]
         # take apart to get the mini-batch
-        x = torch.stack(x.chunk(batch_size, dim=0))    # [batch, turn, output_size]
+        x = torch.stack(x.chunk(batch_size, dim=0)).permute(1, 0, 2)    # [turn, batch, hidden_size]
+        x = torch.cat([rnn_x, x], dim=2)    # [turn, batch, hidden * 2]
+        x = torch.tanh(self.linear(x))    # [turn, batch, output_size]
         return x
 
     
-class Decoder_w2t(nn.Module):
+class Decoder_gn(nn.Module):
     
     def __init__(self, output_size, embed_size, hidden_size, user_embed_size=10,
                  pretrained=None):
-        super(Decoder_w2t, self).__init__()
+        super(Decoder_gn, self).__init__()
         self.output_size = output_size
         self.hidden_size = hidden_size
         self.embed_size = embed_size
@@ -199,7 +206,7 @@ class Decoder_w2t(nn.Module):
         return output, hidden
     
     
-class When2Talk(nn.Module):
+class GCNRNN(nn.Module):
     
     '''
     When2Talk model
@@ -212,16 +219,16 @@ class When2Talk(nn.Module):
     def __init__(self, input_size, output_size, embed_size, utter_hidden_size, 
                  context_hidden_size, decoder_hidden_size, position_embed_size, 
                  user_embed_size=10, teach_force=0.5, pad=0, sos=0, dropout=0.5,
-                 utter_n_layer=1, bn=False, contextrnn=False):
-        super(When2Talk, self).__init__()
+                 utter_n_layer=1, bn=False):
+        super(GCNRNN, self).__init__()
         self.teach_force = teach_force
         self.output_size = output_size
         self.pad, self.sos = pad, sos
-        self.utter_encoder = Utterance_encoder_w2t(input_size, embed_size, utter_hidden_size, 
+        self.utter_encoder = Utterance_encoder_gn(input_size, embed_size, utter_hidden_size, 
                                                    dropout=dropout, n_layer=utter_n_layer) 
-        self.gcncontext = GCNContext(utter_hidden_size+user_embed_size, context_hidden_size, 
+        self.gcncontext = GCNRNNContext(utter_hidden_size+user_embed_size, context_hidden_size, 
                                      context_hidden_size, position_embed_size, dropout=dropout)
-        self.decoder = Decoder_w2t(output_size, embed_size, decoder_hidden_size, 
+        self.decoder = Decoder_gn(output_size, embed_size, decoder_hidden_size, 
                                    user_embed_size=user_embed_size) 
         
         # user embedding, 10 
@@ -236,12 +243,6 @@ class When2Talk(nn.Module):
         self.hidden_proj = nn.Linear(context_hidden_size + user_embed_size, 
                                      decoder_hidden_size)
         self.hidden_drop = nn.Dropout(p=dropout)
-        
-        # RNN-based context encoder
-        self.contextrnn = contextrnn
-        if self.contextrnn:
-            self.contextrnn = nn.GRU(context_hidden_size, decoder_hidden_size, 
-                                     num_layers=1)
         
     def forward(self, src, tgt, gbatch, subatch, tubatch, lengths):
         '''
@@ -268,20 +269,13 @@ class When2Talk(nn.Module):
         turns = torch.stack(turns)    # [turn_len, batch, utter_hidden]
 
         # GCN Context encoder
-        # context_output: [batch, turn, hidden_size]
+        # context_output: [turn, batch, hidden_size]
         # combine the subatch and turns
         x = torch.cat([turns, subatch], 2)    # [turn, batch, utter_hidden + user_embed_size]
         context_output = self.gcncontext(gbatch, x)
-        context_output = context_output.permute(1, 0, 2)    # [turn, batch, hidden]
+        # context_output = context_output.permute(1, 0, 2)    # [turn, batch, hidden]
         
-        # ========== final hidden state ==========
-        if self.contextrnn:
-            # context_output: [seq_len, batch, decoder_hidden]
-            # hidden: [batch, decoder_hidden]
-            context_output, hidden = self.contextrnn(context_output)
-            hidden = hidden.squeeze(0)
-        else:
-            hidden = context_output[-1]    # [batch, decoder_hidden]
+        hidden = context_output[-1]    # [batch, decoder_hidden]
 
         # ========== decision, use the final hidden state above ==========
         decision_inpt = torch.cat([hidden, tubatch], 1)     # [batch, hidden+10] 
@@ -335,16 +329,9 @@ class When2Talk(nn.Module):
         # GCN Context encoding
         x = torch.cat([turns, subatch], 2)    # [turn, batch, hidden + user_embed_size]
         context_output = self.gcncontext(gbatch, x)    # [batch, turn, hidden]
-        context_output = context_output.permute(1, 0, 2)    # [turn, batch, hidden]
+        # context_output = context_output.permute(1, 0, 2)    # [turn, batch, hidden]
         
-        # ========== final hidden state ==========
-        if self.contextrnn:
-            # context_output: [seq_len, batch, decoder_hidden]
-            # hidden: [batch, decoder_hidden]
-            context_output, hidden = self.contextrnn(context_output)
-            hidden = hidden.squeeze(0)
-        else:
-            hidden = context_output[-1]    # [batch, decoder_hidden]
+        hidden = context_output[-1]    # [batch, decoder_hidden]
 
         # decision
         decision_inpt = torch.cat([hidden, tubatch], 1)     # [batch, hidden+user_embed_size]
