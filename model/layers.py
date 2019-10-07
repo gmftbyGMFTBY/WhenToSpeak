@@ -12,6 +12,7 @@ import torch.nn.functional as F
 import torch.nn.init as init
 from torch_geometric.nn import GCNConv, TopKPooling
 from torch_geometric.data import Data, DataLoader
+from torch_geometric.nn import MessagePassing
 import math
 import random
 import numpy as np
@@ -166,6 +167,46 @@ class NoamOpt:
         return self.factor * \
             (self.model_size ** (-0.5) *
             min(step ** (-0.5), step * self.warmup ** (-1.5)))
+    
+    
+class My_GatedGCN(MessagePassing):
+    
+    '''
+    GCN with Gated mechanism
+    Help with the tutorial of the pytorch_geometric:
+    https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html
+    
+    x_i^k = x_i^{k-1} + \sum_{j\in N(i)} e_{ij} * GRU(x_i^{k-1}, x_j^{k-1})
+    '''
+    
+    def __init__(self, in_channels, out_channels):
+        super(My_GatedGCN, self).__init__(aggr='add')
+        
+        self.rnn = nn.GRUCell(in_channels, in_channels)
+        self.linear = nn.Linear(in_channels, out_channels)
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        
+    def forward(self, x, edge_index, edge_weight=None):
+        # x: [N, in_channels], edge_index: [2, E]
+        return self.propagate(edge_index, size=(x.size(0), x.size(0)), 
+                              x=x, edge_weight=edge_weight)
+    
+    def message(self, x_i, x_j, edge_weight):
+        # x_i has shape [E, in_channels]
+        # x_j has shape [E, in_channels]
+        # edge_weight has shape [E]
+        x = self.rnn(x_i, x_j)        # [E, in_channels]
+        return edge_weight.view(-1, 1) * x
+    
+    def update(self, aggr_out, x):
+        aggr_out = aggr_out + x
+        aggr_out = self.linear(aggr_out)
+        return aggr_out
+    
+    def __repr__(self):
+        return '{}(in_channels={}, out_channels={})'.format(
+            self.__class__.__name__, self.in_channels, self.out_channels)
 
 
 

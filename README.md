@@ -56,7 +56,14 @@ Generate the graph of the context
 
 ```python
 # generate the graph information of the train/test/dev dataset
+# The average context coverage in the graph: 0.7935/0.7949/0.7794 (train/test/dev) dataset
 ./run.sh graph cornell when2talk 0
+```
+
+Analyze the graph context coverage information
+
+```python
+./run.sh stat cornell 0 0
 ```
 
 Generate the vocab of the dataset
@@ -149,13 +156,24 @@ Evaluate the result of the translated utterances
         <td>0.0211</td>
         <td>0.0608</td>
         <td>24.0131</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>0.0996</td>
+        <td>0.0036</td>
+        <td>0.0073</td>
+        <td>32.9503</td>
       </tr>
       <tr>
         <td align="center">GCNRNN</td>
+        <td>0.1250</td>
+        <td>0.0214</td>
+        <td>0.0624</td>
+        <td>23.9867</td>
+        <td>0.1072</td>
+        <td>0.0077</td>
+        <td>0.0188</td>
+        <td>33.9572</td>
+      </tr>
+      <tr>
+        <td align="center">GatedGCN</td>
         <td></td>
         <td></td>
         <td></td>
@@ -192,11 +210,18 @@ Evaluate the result of the translated utterances
         <td>When2Talk</td>
         <td>0.7992</td>
         <td>0.8507</td>
-        <td></td>
-        <td></td>
+        <td>0.7616</td>
+        <td>0.8388</td>
       </tr>
       <tr>
         <td>GCNRNN</td>
+        <td>0.8176</td>
+        <td>0.8635</td>
+        <td>0.7598</td>
+        <td>0.8445</td>
+      </tr>
+      <tr>
+        <td>GatedGCN</td>
         <td></td>
         <td></td>
         <td></td>
@@ -280,6 +305,7 @@ Evaluate the result of the translated utterances
         </table>
 
 3. Graph ablation learning
+    
     * F1 accuracy of predicting the speaking timing (hred-cf,)
     * BLEU4, BERTScore, Distinct-1, Distinct-2
 

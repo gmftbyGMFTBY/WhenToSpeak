@@ -23,6 +23,7 @@ from model.HRED import HRED
 from model.HRED_cf import HRED_cf
 from model.when2talk import When2Talk
 from model.GCNRNN import GCNRNN
+from model.GatedGCN import GatedGCN
 
 
 def translate(**kwargs):
@@ -88,6 +89,13 @@ def translate(**kwargs):
                      user_embed_size=kwargs['user_embed_size'],
                      sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
                      utter_n_layer=kwargs['utter_n_layer'])
+    elif kwargs['model'] == 'GatedGCN':
+        net = GatedGCN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
+                       kwargs['utter_hidden'], kwargs['context_hidden'],
+                       kwargs['decoder_hidden'], kwargs['position_embed_size'], 
+                       user_embed_size=kwargs['user_embed_size'],
+                       sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
+                       utter_n_layer=kwargs['utter_n_layer'])
     else:
         raise Exception('[!] wrong model (seq2seq, hred, hred-cf)')
 

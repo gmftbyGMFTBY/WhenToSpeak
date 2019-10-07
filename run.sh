@@ -2,7 +2,7 @@
 # Author: GMFTBY
 # Time: 2019.9.25
 
-mode=$1     # vocab, graph, train, translate, eval
+mode=$1     # vocab, graph, stat, train, translate, eval
 dataset=$2
 model=$3
 cuda=$4
@@ -32,6 +32,10 @@ elif [ $model = 'when2talk' ]; then
     cf=1
     graph=1
 elif [ $model = 'GCNRNN' ]; then
+    hierarchical=1
+    cf=1
+    graph=1
+elif [ $model = 'GatedGCN' ]; then
     hierarchical=1
     cf=1
     graph=1
@@ -79,6 +83,24 @@ if [ $mode = 'vocab' ]; then
         --file ./data/${dataset}-corpus/cf/tgt-train.pkl ./data/${dataset}-corpus/cf/tgt-dev.pkl \
         --vocab ./processed/$dataset/optvocab.pkl \
         --cutoff 50000
+        
+elif [ $mode = 'stat' ]; then
+    # analyse the graph information in the dataset
+    echo "[!] analyze the graph coverage information"
+    python utils.py \
+         --mode stat \
+         --graph ./processed/$dataset/train-graph.pkl \
+         --hops 3 
+         
+    python utils.py \
+         --mode stat \
+         --graph ./processed/$dataset/test-graph.pkl \
+         --hops 3
+         
+    python utils.py \
+         --mode stat \
+         --graph ./processed/$dataset/dev-graph.pkl \
+         --hops 3
 
 elif [ $mode = 'graph' ]; then
     # generate the graph for the when2talk model

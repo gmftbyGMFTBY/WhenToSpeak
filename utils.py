@@ -3,7 +3,8 @@
 # Time: 2019.9.25
 
 '''
-utils functions for training the model or loading the dataset
+1. utils functions for training the model or loading the dataset
+2. the stat function for the graph
 '''
 
 
@@ -69,7 +70,7 @@ def load_best_model(dataset, model, net, threshold):
         raise Exception('[!] No saved model')
 
 
-def create_the_graph(turns, bc, weights=[1, 0.5], threshold=0.75, bidir=True):
+def create_the_graph(turns, weights=[1, 0.5], threshold=0.75, bidir=True):
     '''create the weighted directed graph of one conversation
     sequenutial edge, user connected edge, [BERT/PMI] edge
     param: turns: [turns(user, utterance)]
@@ -102,8 +103,8 @@ def create_the_graph(turns, bc, weights=[1, 0.5], threshold=0.75, bidir=True):
                         edges[(i, j)] = [u_w]
                     ue += 1
 
-    # PMI edges, weight by the PMI, fast
     # BERT edges, correlation is measured by the BERT embedding, slow
+    '''
     utterances = []
     for user, utterance in turns:
         utterance = utterance.replace('<0>', '').strip()
@@ -125,6 +126,7 @@ def create_the_graph(turns, bc, weights=[1, 0.5], threshold=0.75, bidir=True):
                     else:
                         edges[(i, j)] = [weight]
                     pe += 1
+    '''
 
     # clean the edges
     e, w = [[], []], []
@@ -133,7 +135,8 @@ def create_the_graph(turns, bc, weights=[1, 0.5], threshold=0.75, bidir=True):
         e[1].append(tgt)
         w.append(max(edges[(src, tgt)]))
 
-        if bidir:
+        if bidir and src != tgt:
+            # be careful of the self loop
             e[0].append(tgt)
             e[1].append(src)
             w.append(max(edges[(src, tgt)]))
@@ -145,11 +148,11 @@ def generate_graph(dialogs, path, threshold=0.75, bidir=True):
     # dialogs: [datasize, turns]
     # return: [datasize, (2, num_edges)/ (num_edges)]
     # **make sure the bert-as-service is running**
-    bc = BertClient()
+    # bc = BertClient()
     edges = []
     se, ue, pe = 0, 0, 0
     for dialog in tqdm(dialogs):
-        edge, ses, ueu, pep = create_the_graph(dialog, bc, threshold=threshold, bidir=bidir)
+        edge, ses, ueu, pep = create_the_graph(dialog, threshold=threshold, bidir=bidir)
         se += ses
         ue += ueu
         pe += pep
@@ -262,6 +265,65 @@ def idx2sent(data, users, vocab):
     return datasets
 
 
+# ========== stst of the graph ========== #
+def analyse_graph(path, hops=3):
+    '''
+    This function analyzes the graph coverage stat of the graph in Dailydialog 
+    and cornell dataset.
+    Stat the context node coverage of each node in the conversation.
+    :param: path, the path of the dataset graph file.
+    '''
+    def coverage(nodes, edges):
+        # return the coverage information of each node
+        # return list of tuple (context nodes, coverage nodes)
+        # edges to dict
+        e = {}
+        for i, j in zip(edges[0], edges[1]):
+            if i > j:
+                continue
+            if e.get(j, None):
+                e[j].append(i)
+            else:
+                e[j] = [i]
+        for key in e.keys():    # make the set
+            e[key] = list(set(e[key]))
+        collector = []
+        for node in nodes:
+            # context nodes
+            context_nodes = list(range(0, node))
+            if context_nodes:
+                # ipdb.set_trace()
+                # coverage nodes, BFS
+                coverage_nodes, tools, tidx = [], [(node, 0)], 0
+                while True:
+                    try:
+                        n, nidx = tools[tidx]
+                    except:
+                        break
+                    if nidx < hops:
+                        for src in e[n]:
+                            if src not in tools:
+                                tools.append((src, nidx + 1))
+                            if src not in coverage_nodes:
+                                coverage_nodes.append(src)
+                    tidx += 1
+                collector.append((len(context_nodes), len(coverage_nodes)))
+        return collector
+        
+    graph = load_pickle(path)    # [datasize, ([2, num_edge], [num_edge])]
+    avg_cover = []
+    for idx, (edges, _) in enumerate(tqdm(graph)):
+        # make sure the number of the nodes
+        nodes = []
+        for i, j in zip(edges[0], edges[1]):
+            if i == j and i not in nodes:
+                nodes.append(i)
+        avg_cover.extend(coverage(nodes, edges))
+        
+    # ========== stat ========== #
+    ratio = [i / j for i, j in avg_cover]
+    print(f'[!] the avg graph coverage of the context is {round(np.mean(ratio), 4)}')
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='utils functions')
@@ -280,6 +342,7 @@ if __name__ == "__main__":
     parser.add_argument('--tgt_vocab', type=str, default=None)
     parser.add_argument('--src', type=str, default=None)
     parser.add_argument('--tgt', type=str, default=None)
+    parser.add_argument('--hops', type=int, default=3)
     parser.add_argument('--bidir', dest='bidir', action='store_true')
     parser.add_argument('--no-bidir', dest='bidir', action='store_false')
     args = parser.parse_args()
@@ -293,3 +356,7 @@ if __name__ == "__main__":
         ppdataset = idx2sent(src_dataset, src_user, args.src_vocab)
         print(f'[!] begin to create the graph')
         generate_graph(ppdataset, args.graph, threshold=args.threshold, bidir=args.bidir)
+    elif args.mode == 'stat':
+        analyse_graph(args.graph, hops=args.hops)
+    else:
+        raise Exception('[!] wrong mode for running the utils script')
