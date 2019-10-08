@@ -95,7 +95,17 @@ Evaluate the result of the translated utterances
 
 ## Experiment Result
 
-1. Automatic evaluation
+1. Methods
+    * Seq2Seq: seq2seq with attention
+    * HRED: hierarchical context modeling
+    * HRED-CF: HRED model with classification for talk timing
+    * When2Talk: GCNContext modeling first and RNN Context later
+    * W2T_RNN_First: **Bi**RNN Context modeling first and GCNContext later
+    * GCNRNN: combine the GCNContext and RNNContext together
+    * GatedGCN: combine the Gated GCNContext and RNNContext together
+    * W2T_GCNRNN: RNN + GCN combine RNN together (W2_T_RNN_First + GCNRNN)
+
+2. Automatic evaluation
 
     * Compare the PPL, BLEU4, Disctint-1, Distinct-2 score for all the models.
     
@@ -162,6 +172,17 @@ Evaluate the result of the translated utterances
         <td>32.9503</td>
       </tr>
       <tr>
+        <td align="center">W2T_RNN_First</td>
+        <td>0.1250</td>
+        <td>0.0185</td>
+        <td>0.0507</td>
+        <td>25.3581</td>
+        <td>0.1099</td>
+        <td>0.007</td>
+        <td>0.0172</td>
+        <td>35.6625</td>
+      </tr>
+      <tr>
         <td align="center">GCNRNN</td>
         <td>0.1250</td>
         <td>0.0214</td>
@@ -173,15 +194,26 @@ Evaluate the result of the translated utterances
         <td>33.9572</td>
       </tr>
       <tr>
+        <td align="center">W2T_GCNRNN</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
         <td align="center">GatedGCN</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>0.1258</td>
+        <td>0.0238</td>
+        <td>0.0685</td>
+        <td>25.0131</td>
+        <td>0.1127</td>
+        <td>0.0062</td>
+        <td>0.0149</td>
+        <td>34.2847</td>
       </tr>
     </table>
 
@@ -214,6 +246,13 @@ Evaluate the result of the translated utterances
         <td>0.8388</td>
       </tr>
       <tr>
+        <td>W2T_RNN_First</td>
+        <td>0.7522</td>
+        <td>0.8358</td>
+        <td>0.7323</td>
+        <td>0.8322</td>
+      </tr>
+      <tr>
         <td>GCNRNN</td>
         <td>0.8176</td>
         <td>0.8635</td>
@@ -221,11 +260,18 @@ Evaluate the result of the translated utterances
         <td>0.8445</td>
       </tr>
       <tr>
+        <td>W2T_GCNRNN</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
         <td>GatedGCN</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>0.8016</td>
+        <td>0.8526</td>
+        <td>0.7594</td>
+        <td>0.8445</td>
       </tr>
     </table>
 

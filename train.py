@@ -24,6 +24,8 @@ from model.HRED_cf import HRED_cf
 from model.when2talk import When2Talk
 from model.GCNRNN import GCNRNN
 from model.GatedGCN import GatedGCN
+from model.W2T_RNN_First import W2T_RNN_First
+from model.W2T_GCNRNN import W2T_GCNRNN
 from model.layers import *
 
 
@@ -198,6 +200,14 @@ def main(**kwargs):
                      teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
                      sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'],
                      utter_n_layer=kwargs['utter_n_layer'])
+    elif kwargs['model'] == 'W2T_GCNRNN':
+        net = W2T_GCNRNN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
+                         kwargs['utter_hidden'], kwargs['context_hidden'],
+                         kwargs['decoder_hidden'], kwargs['position_embed_size'],
+                         user_embed_size=kwargs['user_embed_size'],
+                         teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
+                         sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'],
+                         utter_n_layer=kwargs['utter_n_layer'])
     elif kwargs['model'] == 'GatedGCN':
         net = GatedGCN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
                        kwargs['utter_hidden'], kwargs['context_hidden'],
@@ -206,6 +216,14 @@ def main(**kwargs):
                        teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
                        sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'],
                        utter_n_layer=kwargs['utter_n_layer'])
+    elif kwargs['model'] == 'W2T_RNN_First':
+        net = W2T_RNN_First(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'], 
+                            kwargs['utter_hidden'], kwargs['context_hidden'],
+                            kwargs['decoder_hidden'], kwargs['position_embed_size'],
+                            user_embed_size=kwargs['user_embed_size'],
+                            teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
+                            sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'], 
+                            utter_n_layer=kwargs['utter_n_layer'])
     else:
         raise Exception('[!] Wrong model (seq2seq, hred, hred-cf)')
 
