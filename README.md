@@ -56,13 +56,13 @@ Generate the graph of the context
 
 ```python
 # generate the graph information of the train/test/dev dataset
-# The average context coverage in the graph: 0.7935/0.7949/0.7794 (train/test/dev) dataset
 ./run.sh graph cornell when2talk 0
 ```
 
 Analyze the graph context coverage information
 
 ```python
+# The average context coverage in the graph: 0.7935/0.7949/0.7794 (train/test/dev) dataset
 ./run.sh stat cornell 0 0
 ```
 
@@ -95,6 +95,17 @@ Evaluate the result of the translated utterances
 
 ## Experiment Result
 
+```markdown
+wait to do:
+1. add GatedGCN to all the graph-based method
+2. add BiGRU to all the graph-based method
+3. refer the DialogueGCN to construct the graph
+    * the complete graph in the **p** windows size
+    * add one long edge out of the windows size to explore long context sentence
+    * user embedding as the node for processing
+4. Layers analyse of the GatedGCN in this repo and mutli-turn modeling
+```
+
 1. Methods
     * Seq2Seq: seq2seq with attention
     * HRED: hierarchical context modeling
@@ -103,7 +114,11 @@ Evaluate the result of the translated utterances
     * W2T_RNN_First: **Bi**RNN Context modeling first and GCNContext later
     * GCNRNN: combine the GCNContext and RNNContext together
     * GatedGCN: combine the Gated GCNContext and RNNContext together
-    * W2T_GCNRNN: RNN + GCN combine RNN together (W2_T_RNN_First + GCNRNN)
+        1. BiRNN for background modeling
+        2. Gated GCN for context modeling
+        2. Combine GCN embedding and BiRNN embedding, final embedding
+        4. Low-turn examples trained without the GCNConv (only use the BiRNN)
+    * W2T_GCNRNN: RNN + GCN combine RNN together (W2T_RNN_First + GCNRNN)
 
 2. Automatic evaluation
 
@@ -142,7 +157,7 @@ Evaluate the result of the translated utterances
         <td align="center">HRED</td>
         <td>0.1175</td>
         <td>0.0176</td>
-        <td>0.0576</td>
+        <td>0.0571</td>
         <td>29.7402</td>
         <td>0.0823</td>
         <td>0.0227</td>
@@ -151,9 +166,9 @@ Evaluate the result of the translated utterances
       </tr>
       <tr>
         <td align="center">HRED-CF</td>
-        <td>0.1276</td>
-        <td>0.0274</td>
-        <td>0.0817</td>
+        <td>0.1270</td>
+        <td>0.0254</td>
+        <td>0.0713</td>
         <td>22.4121</td>
         <td>0.1116</td>
         <td>0.0094</td>
@@ -173,14 +188,14 @@ Evaluate the result of the translated utterances
       </tr>
       <tr>
         <td align="center">W2T_RNN_First</td>
-        <td>0.1250</td>
-        <td>0.0185</td>
-        <td>0.0507</td>
-        <td>25.3581</td>
-        <td>0.1099</td>
-        <td>0.007</td>
-        <td>0.0172</td>
-        <td>35.6625</td>
+        <td>0.1244</td>
+        <td>0.0268</td>
+        <td>0.0787</td>
+        <td>24.5056</td>
+        <td>0.1118</td>
+        <td>0.0065</td>
+        <td>0.0147</td>
+        <td>33.754</td>
       </tr>
       <tr>
         <td align="center">GCNRNN</td>
@@ -195,21 +210,21 @@ Evaluate the result of the translated utterances
       </tr>
       <tr>
         <td align="center">W2T_GCNRNN</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>0.1246</td>
+        <td>0.0152</td>
+        <td>0.0400</td>
+        <td>23.4434</td>
+        <td>0.1107</td>
+        <td>0.0063</td>
+        <td>0.0142</td>
+        <td>34.4256</td>
       </tr>
       <tr>
         <td align="center">GatedGCN</td>
-        <td>0.1258</td>
-        <td>0.0238</td>
-        <td>0.0685</td>
-        <td>25.0131</td>
+        <td>0.1311</td>
+        <td>0.0273</td>
+        <td>0.0772</td>
+        <td>23.8456</td>
         <td>0.1127</td>
         <td>0.0062</td>
         <td>0.0149</td>
@@ -233,8 +248,8 @@ Evaluate the result of the translated utterances
       </tr>
       <tr>
         <td>HRED-CF</td>
-        <td>0.8222</td>
-        <td>0.8645</td>
+        <td>0.8219</td>
+        <td>0.8635</td>
         <td>0.7708</td>
         <td>0.8427</td>
       </tr>
@@ -247,10 +262,10 @@ Evaluate the result of the translated utterances
       </tr>
       <tr>
         <td>W2T_RNN_First</td>
-        <td>0.7522</td>
-        <td>0.8358</td>
-        <td>0.7323</td>
-        <td>0.8322</td>
+        <td>0.8144</td>
+        <td>0.8584</td>
+        <td>0.7481</td>
+        <td>0.8312</td>
       </tr>
       <tr>
         <td>GCNRNN</td>
@@ -261,15 +276,15 @@ Evaluate the result of the translated utterances
       </tr>
       <tr>
         <td>W2T_GCNRNN</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>0.7565</td>
+        <td>0.8434</td>
+        <td>0.7853</td>
+        <td>0.8466</td>
       </tr>
       <tr>
         <td>GatedGCN</td>
-        <td>0.8016</td>
-        <td>0.8526</td>
+        <td>0.8227</td>
+        <td>0.8664</td>
         <td>0.7594</td>
         <td>0.8445</td>
       </tr>

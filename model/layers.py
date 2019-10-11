@@ -179,10 +179,11 @@ class My_GatedGCN(MessagePassing):
     x_i^k = x_i^{k-1} + \eta \sum_{j\in N(i)} e_{ij} * GRU(x_i^{k-1}, x_j^{k-1})
     '''
     
-    def __init__(self, in_channels, out_channels):
-        super(My_GatedGCN, self).__init__(aggr='add')
+    def __init__(self, in_channels, out_channels, kernel):
+        super(My_GatedGCN, self).__init__(aggr='mean')
         
-        self.rnn = nn.GRUCell(in_channels, in_channels)
+        # kernel is a Gated GRUCell
+        self.rnn = kernel
         self.linear = nn.Linear(in_channels, out_channels)
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -199,18 +200,11 @@ class My_GatedGCN(MessagePassing):
         x = self.rnn(x_i, x_j)        # [E, in_channels]
         return edge_weight.view(-1, 1) * x
     
-    def update(self, aggr_out, x, edge_index):
+    def update(self, aggr_out, x):
         # aggr_out has shape [N, in_channels]
         # x has shape [N, in_channels]
-        # norm by the in degree size
-        eta = []
-        for i in range(x.size(0)):
-            eta.append(1 / torch.sum(edge_index[-1] == i).item())
-        if torch.cuda.is_available():
-            # eta has shape [N]
-            eta = torch.tensor(eta, dtype=torch.float).cuda()
         
-        aggr_out = eta.view(-1, 1) * aggr_out + x
+        aggr_out = aggr_out + x
         aggr_out = self.linear(aggr_out)    # [N, out_channels]
         return aggr_out
     

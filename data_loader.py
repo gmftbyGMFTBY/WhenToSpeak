@@ -151,6 +151,14 @@ def get_batch_data(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen, plus=0):
         if len(sbatch[0]) < plus:
             fidx = bidx
             continue
+            
+            
+        # delete 3/4 low-turns dataset for training
+        # if plus < 0 and len(sbatch[0]) < abs(plus):
+        #     if random.random() > 0.25:
+        #         fidx = bidx
+        #         continue
+                
 
         shuffleidx = np.arange(0, len(sbatch))
         np.random.shuffle(shuffleidx)
@@ -232,6 +240,14 @@ def get_batch_data_cf(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen, plus=0
         if len(sbatch[0]) < plus:
             fidx = bidx
             continue
+            
+            
+        # delete 3/4 low-turns dataset for training
+        # if plus < 0 and len(sbatch[0]) < abs(plus):
+        #     if random.random() > 0.25:
+        #         fidx = bidx
+        #         continue
+                
         
         shuffleidx = np.arange(0, len(sbatch))
         np.random.shuffle(shuffleidx)
@@ -296,6 +312,9 @@ def get_batch_data_cf_graph(src, tgt, graph, src_vocab, tgt_vocab, batch_size, m
     graph = load_pickle(graph)    # [datasize, (edges, weight)]
     
     turns = [len(dialog) for dialog in src_dataset]
+    
+    # prune the dataset before the shuffle processing
+    
     turnidx = np.argsort(turns)
 
     # [datasize, turn, lengths]
@@ -326,6 +345,14 @@ def get_batch_data_cf_graph(src, tgt, graph, src_vocab, tgt_vocab, batch_size, m
         if len(sbatch[0]) < plus:
             fidx = bidx
             continue
+            
+            
+        # delete 3/4 low-turns dataset for training
+        # if plus < 0 and len(sbatch[0]) < abs(plus):
+        #     if random.random() > 0.25:
+        #         fidx = bidx
+        #         continue
+            
         
         shuffleidx = np.arange(0, len(sbatch))
         np.random.shuffle(shuffleidx)

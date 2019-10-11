@@ -109,7 +109,8 @@ def translate(**kwargs):
                        kwargs['decoder_hidden'], kwargs['position_embed_size'], 
                        user_embed_size=kwargs['user_embed_size'],
                        sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
-                       utter_n_layer=kwargs['utter_n_layer'])
+                       utter_n_layer=kwargs['utter_n_layer'],
+                       context_threshold=kwargs['context_threshold'])
     elif kwargs['model'] == 'W2T_RNN_First':
         net = W2T_RNN_First(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
                         kwargs['utter_hidden'], kwargs['context_hidden'],
@@ -264,6 +265,7 @@ if __name__ == "__main__":
     parser.add_argument('--plus', type=int, default=0, help='the same as the one in train.py')
     parser.add_argument('--contextrnn', dest='contextrnn', action='store_true')
     parser.add_argument('--no-contextrnn', dest='contextrnn', action='store_false')
+    parser.add_argument('--context_threshold', type=int, default=2)
 
     args = parser.parse_args()
     

@@ -334,7 +334,7 @@ class W2T_RNN_First(nn.Module):
         # GCN Context encoding
         x = torch.cat([turns, subatch], 2)    # [turn, batch, hidden + user_embed_size]
         x, _ = self.contextrnn(x)    # [turn, batch, 2*context_hidden]
-        x = torch.cat([turns, subatch], 2)    # [turn, batch, context_hidden + pos_embed_size]
+        x = torch.cat([x, subatch], 2)    # [turn, batch, context_hidden + pos_embed_size]
         
         context_output = self.gcncontext(gbatch, x)    # [batch, turn, hidden]
         context_output = context_output.permute(1, 0, 2)    # [turn, batch, hidden]

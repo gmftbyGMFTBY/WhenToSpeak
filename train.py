@@ -215,7 +215,8 @@ def main(**kwargs):
                        user_embed_size=kwargs['user_embed_size'],
                        teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
                        sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'],
-                       utter_n_layer=kwargs['utter_n_layer'])
+                       utter_n_layer=kwargs['utter_n_layer'],
+                       context_threshold=kwargs['context_threshold'])
     elif kwargs['model'] == 'W2T_RNN_First':
         net = W2T_RNN_First(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'], 
                             kwargs['utter_hidden'], kwargs['context_hidden'],
@@ -383,6 +384,7 @@ if __name__ == "__main__":
                         help='only use the turns that larger than plus_number for training')
     parser.add_argument('--contextrnn', dest='contextrnn', action='store_true')
     parser.add_argument('--no-contextrnn', dest='contextrnn', action='store_false')
+    parser.add_argument('--context_threshold', type=int, default=2)
 
     args = parser.parse_args()
 

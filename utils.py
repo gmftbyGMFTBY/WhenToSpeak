@@ -70,7 +70,7 @@ def load_best_model(dataset, model, net, threshold):
         raise Exception('[!] No saved model')
 
 
-def create_the_graph(turns, weights=[1, 0.5], threshold=0.75, bidir=True):
+def create_the_graph(turns, weights=[1, 1], threshold=0.75, bidir=True):
     '''create the weighted directed graph of one conversation
     sequenutial edge, user connected edge, [BERT/PMI] edge
     param: turns: [turns(user, utterance)]
@@ -87,8 +87,8 @@ def create_the_graph(turns, weights=[1, 0.5], threshold=0.75, bidir=True):
         se += 1
 
     # add the self loop edge for each node
-    for i in range(turn_len):
-        edges[(i, i)] = [1]
+    # for i in range(turn_len):
+    #     edges[(i, i)] = [1]
 
     # user connected edges
     for i in range(turn_len):
@@ -323,6 +323,7 @@ def analyse_graph(path, hops=3):
     # ========== stat ========== #
     ratio = [i / j for i, j in avg_cover]
     print(f'[!] the avg graph coverage of the context is {round(np.mean(ratio), 4)}')
+
 
 
 if __name__ == "__main__":
