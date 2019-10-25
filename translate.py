@@ -26,6 +26,7 @@ from model.GCNRNN import GCNRNN
 from model.GatedGCN import GatedGCN
 from model.W2T_RNN_First import W2T_RNN_First
 from model.W2T_GCNRNN import W2T_GCNRNN
+from model.GatedGCN_nobi import GatedGCN_nobi
 
 
 def translate(**kwargs):
@@ -111,6 +112,14 @@ def translate(**kwargs):
                        sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
                        utter_n_layer=kwargs['utter_n_layer'],
                        context_threshold=kwargs['context_threshold'])
+    elif kwargs['model'] == 'GatedGCN_nobi':
+        net = GatedGCN_nobi(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
+                       kwargs['utter_hidden'], kwargs['context_hidden'],
+                       kwargs['decoder_hidden'], kwargs['position_embed_size'], 
+                       user_embed_size=kwargs['user_embed_size'],
+                       sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
+                       utter_n_layer=kwargs['utter_n_layer'],
+                       context_threshold=kwargs['context_threshold'])
     elif kwargs['model'] == 'W2T_RNN_First':
         net = W2T_RNN_First(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
                         kwargs['utter_hidden'], kwargs['context_hidden'],
@@ -129,7 +138,8 @@ def translate(**kwargs):
     print(net)
 
     # load best model
-    load_best_model(kwargs["dataset"], kwargs['model'], net, threshold=kwargs['epoch_threshold'])
+    load_best_model(kwargs["dataset"], kwargs['model'], net, 
+                    kwargs['min_threshold'], kwargs['max_threshold'])
     
     # translate
     with open(kwargs['pred'], 'w') as f:
@@ -153,14 +163,17 @@ def translate(**kwargs):
             # output: [maxlen, batch_size], de: [batch]
             if kwargs['cf'] == 1:
                 if kwargs['graph'] == 1:
-                    de, output = net.predict(sbatch, gbatch, subatch, tubatch, kwargs['tgt_maxlen'], turn_lengths)
+                    de, output = net(sbatch, tbatch, gbatch, subatch, tubatch, turn_lengths)
                 else:
-                    de, output = net.predict(sbatch, subatch, tubatch, kwargs['tgt_maxlen'], turn_lengths)
+                    de, output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
                 # fix de
                 de = (de > 0.5).long().cpu().tolist()
                 label = label.cpu().tolist()
             else:
-                output = net.predict(sbatch, kwargs['tgt_maxlen'], turn_lengths)
+                output = net(sbatch, tbatch, turn_lengths)
+          
+            # [turn, batch, output_size]
+            output = torch.max(output, 2)[1]
             
             for i in range(batch_size):
                 ref = list(map(int, tbatch[:, i].tolist()))
@@ -234,7 +247,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Translate script')
     parser.add_argument('--src_test', type=str, default=None, help='src test file')
     parser.add_argument('--tgt_test', type=str, default=None, help='tgt test file')
-    parser.add_argument('--epoch_threshold', type=int, default=20, 
+    parser.add_argument('--min_threshold', type=int, default=20, 
+                        help='epoch threshold for loading best model')
+    parser.add_argument('--max_threshold', type=int, default=20, 
                         help='epoch threshold for loading best model')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size')
     parser.add_argument('--model', type=str, default='HRED', help='model to be trained')

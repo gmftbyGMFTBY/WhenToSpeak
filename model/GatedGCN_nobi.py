@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-from torch_geometric.nn import GATConv, GCNConv, TopKPooling
+from torch_geometric.nn import GCNConv, TopKPooling
 from torch_geometric.data import Data, DataLoader    # create the graph batch dynamically
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 import numpy as np
@@ -21,7 +21,7 @@ from .layers import *
 import ipdb
 
 
-class Utterance_encoder_w2t(nn.Module):
+class Utterance_encoder_ggcn(nn.Module):
     
     '''
     Bidirectional GRU
@@ -29,7 +29,7 @@ class Utterance_encoder_w2t(nn.Module):
 
     def __init__(self, input_size, embedding_size, 
                  hidden_size, dropout=0.5, n_layer=1, pretrained=False):
-        super(Utterance_encoder_w2t, self).__init__()
+        super(Utterance_encoder_ggcn, self).__init__()
 
         self.embedding_size = embedding_size
         self.hidden_size = hidden_size
@@ -68,34 +68,45 @@ class Utterance_encoder_w2t(nn.Module):
         return hidden    # [batch, hidden]
 
         
-class GCNContext(nn.Module):
+class GatedGCNContext_nobi(nn.Module):
 
     '''
     GCN Context encoder
 
     It should be noticed that PyG merges all the subgraph in the batch into a big graph
     which is a sparse block diagonal adjacency matrices.
-    Refer: Mini-batches in https://pytorch-geometric.readthedocs.io/en/latest/notes/introduction.html
+    Refer: Mini-batches in 
+    https://pytorch-geometric.readthedocs.io/en/latest/notes/introduction.html
 
     Our implementation is the three layers GCN with the position embedding
     '''
 
-    def __init__(self, inpt_size, hidden_size, output_size, posemb_size, dropout=0.5):
+    def __init__(self, inpt_size, output_size, user_embed_size, 
+                 posemb_size, dropout=0.5, threshold=2):
         # inpt_size: utter_hidden_size + user_embed_size
-        super(GCNContext, self).__init__()
-        self.conv1 = GCNConv(inpt_size + posemb_size, hidden_size)
-        self.conv2 = GCNConv(hidden_size + posemb_size, hidden_size)
-        self.conv3 = GCNConv(hidden_size + posemb_size, hidden_size)
-        # self.conv1 = GATConv(inpt_size + posemb_size, hidden_size, heads=8)
-        # self.conv2 = GATConv(8 * hidden_size, hidden_size, heads=8)
-        # self.conv3 = GATConv(8 * hidden_size, hidden_size, heads=8)
-        self.bn1 = nn.BatchNorm1d(num_features=hidden_size)
-        self.bn2 = nn.BatchNorm1d(num_features=hidden_size)
-        self.bn3 = nn.BatchNorm1d(num_features=hidden_size)
+        super(GatedGCNContext_nobi, self).__init__()
+        # utter + user_embed + pos_embed
+        size = inpt_size + user_embed_size + posemb_size
+        self.threshold = threshold
+        
+        # GatedGCN
+        self.kernel_rnn = nn.GRUCell(size, size)
+        self.conv1 = My_GatedGCN(size, inpt_size, self.kernel_rnn)
+        self.conv2 = My_GatedGCN(size, inpt_size, self.kernel_rnn)
+        self.conv3 = My_GatedGCN(size, inpt_size, self.kernel_rnn)
+        self.bn1 = nn.BatchNorm1d(num_features=inpt_size)
+        self.bn2 = nn.BatchNorm1d(num_features=inpt_size)
+        self.bn3 = nn.BatchNorm1d(num_features=inpt_size)
 
-        self.linear = nn.Linear(hidden_size, output_size)
+        # rnn for background, bidirectional or not?
+        self.rnn = nn.GRU(inpt_size + user_embed_size, inpt_size, bidirectional=True)
+
+        self.linear1 = nn.Linear(inpt_size * 2, inpt_size)
+        self.linear2 = nn.Linear(inpt_size * 2, output_size)
         self.drop = nn.Dropout(p=dropout)
-        self.posemb = nn.Embedding(100, posemb_size)    # 100 is far bigger than the max turn lengths
+        
+        # 100 is far bigger than the max turn lengths (cornell and dailydialog datasets)
+        self.posemb = nn.Embedding(100, posemb_size)
         
     def create_batch(self, gbatch, utter_hidden):
         '''create one graph batch
@@ -119,19 +130,31 @@ class GCNContext(nn.Module):
 
         return batch, weights
 
-    def forward(self, gbatch, utter_hidden):
-        # utter_hidden: [turn_len, batch, hidden_size + user_embed_size]
-        batch, weights = self.create_batch(gbatch, utter_hidden)
+    def forward(self, gbatch, utter_hidden, ub):
+        # utter_hidden: [turn_len, batch, inpt_size]
+        # ub: [turn_len, batch, user_embed_size]
+        # BiRNN First, rnn_x: [turn, batch, 2 * inpt_size]
+        rnn_x, _ = self.rnn(torch.cat([utter_hidden, ub], dim=-1))
+        rnn_x = self.linear1(rnn_x)    # [turn, batch, inpt_size]
+        turn_size = utter_hidden.size(0)
+        
+        if turn_size <= self.threshold:
+            return rnn_x, rnn_x    # [turn, batch, inpt_size]
+        
+        batch, weights = self.create_batch(gbatch, rnn_x)
         x, edge_index, batch = batch.x, batch.edge_index, batch.batch
         
         # cat pos_embed: [node, posemb_size]
         batch_size = torch.max(batch).item() + 1
-        turn_size = utter_hidden.size(0)
 
+        # pos
         pos = []
         for i in range(batch_size):
             pos.append(torch.arange(turn_size, dtype=torch.long))
         pos = torch.cat(pos)
+        
+        # user embedding
+        ub = ub.reshape(-1, ub.size(-1))    # [node, user_embed_size]
 
         # load to GPU
         if torch.cuda.is_available():
@@ -142,33 +165,32 @@ class GCNContext(nn.Module):
             pos = pos.cuda()    # [node]
         
         pos = self.posemb(pos)    # [node, pos_emb]
-        x = torch.cat([x, pos], dim=1)    # [node, pos_emb + hidden_size + user_embed_size]
-
+        
+        # [node, pos_emb + inpt_size + user_embed_size]
+        x = torch.cat([x, pos, ub], dim=1)
         x1 = F.relu(self.bn1(self.conv1(x, edge_index, edge_weight=weights)))
-        # x1 = F.relu(self.conv1(x, edge_index))
-        x1_ = torch.cat([x1, pos], dim=1)
+        x1_ = torch.cat([x1, pos, ub], dim=1)
         x2 = F.relu(self.bn2(self.conv2(x1_, edge_index, edge_weight=weights)))
-        # x2 = F.relu(self.conv2(x1, edge_index))
-        x2_ = torch.cat([x2, pos], dim=1)
+        x2_ = torch.cat([x2, pos, ub], dim=1)
         x3 = F.relu(self.bn3(self.conv3(x2_, edge_index, edge_weight=weights)))
-        # x3 = F.relu(self.conv3(x2, edge_index))
-            
-        # residual for overcoming over-smoothing, [nodes, hidden_size]
+
+        # residual for overcoming over-smoothing, [nodes, inpt_size]
         x = x1 + x2 + x3
         x = self.drop(x)
-        x = torch.tanh(self.linear(x))    # [nodes, hidden_size]
 
         # [nodes/turn_len, output_size]
         # take apart to get the mini-batch
-        x = torch.stack(x.chunk(batch_size, dim=0))    # [batch, turn, output_size]
-        return x
+        x = torch.stack(x.chunk(batch_size, dim=0)).permute(1, 0, 2)    # [turn, batch, inpt_size]
+        x = torch.cat([rnn_x, x], dim=2)    # [turn, batch, inpt_size * 2]
+        x = torch.tanh(self.linear2(x))    # [turn, batch, output_size]
+        return x, rnn_x
 
     
-class Decoder_w2t(nn.Module):
+class Decoder_ggcn(nn.Module):
     
     def __init__(self, output_size, embed_size, hidden_size, user_embed_size=10,
                  pretrained=None):
-        super(Decoder_w2t, self).__init__()
+        super(Decoder_ggcn, self).__init__()
         self.output_size = output_size
         self.hidden_size = hidden_size
         self.embed_size = embed_size
@@ -207,7 +229,7 @@ class Decoder_w2t(nn.Module):
         return output, hidden
     
     
-class When2Talk(nn.Module):
+class GatedGCN_nobi(nn.Module):
     
     '''
     When2Talk model
@@ -220,17 +242,24 @@ class When2Talk(nn.Module):
     def __init__(self, input_size, output_size, embed_size, utter_hidden_size, 
                  context_hidden_size, decoder_hidden_size, position_embed_size, 
                  user_embed_size=10, teach_force=0.5, pad=0, sos=0, dropout=0.5,
-                 utter_n_layer=1, bn=False, contextrnn=False):
-        super(When2Talk, self).__init__()
+                 utter_n_layer=1, bn=False, context_threshold=2):
+        super(GatedGCN_nobi, self).__init__()
         self.teach_force = teach_force
         self.output_size = output_size
         self.pad, self.sos = pad, sos
-        self.utter_encoder = Utterance_encoder_w2t(input_size, embed_size, utter_hidden_size, 
-                                                   dropout=dropout, n_layer=utter_n_layer) 
-        self.gcncontext = GCNContext(utter_hidden_size+user_embed_size, context_hidden_size, 
-                                     context_hidden_size, position_embed_size, dropout=dropout)
-        self.decoder = Decoder_w2t(output_size, embed_size, decoder_hidden_size, 
-                                   user_embed_size=user_embed_size) 
+        self.utter_encoder = Utterance_encoder_ggcn(input_size, embed_size,
+                                                    utter_hidden_size, 
+                                                    dropout=dropout,
+                                                    n_layer=utter_n_layer) 
+        self.gcncontext = GatedGCNContext_nobi(utter_hidden_size,
+                                          context_hidden_size,
+                                          user_embed_size, 
+                                          position_embed_size, 
+                                          dropout=dropout,
+                                          threshold=context_threshold)
+        self.decoder = Decoder_ggcn(output_size, embed_size, 
+                                    decoder_hidden_size,
+                                    user_embed_size=user_embed_size) 
         
         # user embedding, 10 
         self.user_embed = nn.Embedding(2, 10)
@@ -244,12 +273,6 @@ class When2Talk(nn.Module):
         self.hidden_proj = nn.Linear(context_hidden_size + user_embed_size, 
                                      decoder_hidden_size)
         self.hidden_drop = nn.Dropout(p=dropout)
-        
-        # RNN-based context encoder
-        self.contextrnn = contextrnn
-        if self.contextrnn:
-            self.contextrnn = nn.GRU(context_hidden_size, decoder_hidden_size, 
-                                     num_layers=1)
         
     def forward(self, src, tgt, gbatch, subatch, tubatch, lengths):
         '''
@@ -276,20 +299,11 @@ class When2Talk(nn.Module):
         turns = torch.stack(turns)    # [turn_len, batch, utter_hidden]
 
         # GCN Context encoder
-        # context_output: [batch, turn, hidden_size]
-        # combine the subatch and turns
-        x = torch.cat([turns, subatch], 2)    # [turn, batch, utter_hidden + user_embed_size]
-        context_output = self.gcncontext(gbatch, x)
-        context_output = context_output.permute(1, 0, 2)    # [turn, batch, hidden]
+        # context_output: [turn, batch, output_size]
+        context_output_de, context_output_ge = self.gcncontext(gbatch, turns, subatch)
+        # context_output = context_output.permute(1, 0, 2)    # [turn, batch, hidden]
         
-        # ========== final hidden state ==========
-        if self.contextrnn:
-            # context_output: [seq_len, batch, decoder_hidden]
-            # hidden: [batch, decoder_hidden]
-            context_output, hidden = self.contextrnn(context_output)
-            hidden = hidden.squeeze(0)
-        else:
-            hidden = context_output[-1]    # [batch, decoder_hidden]
+        hidden = context_output_de[-1]    # [batch, decoder_hidden]
 
         # ========== decision, use the final hidden state above ==========
         decision_inpt = torch.cat([hidden, tubatch], 1)     # [batch, hidden+10] 
@@ -300,7 +314,8 @@ class When2Talk(nn.Module):
         # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 1 + user_embed_size]
 
         # ========== hidden project ==========
-        hidden = torch.cat([hidden, tubatch], 1)    # [batch, hidden+user_embed]
+        hidden = context_output_ge[-1]
+        hidden = torch.cat([hidden, tubatch], 1)    # [batch, hidden+user_embed+1]
         hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [batch, hidden]
 
         # decoding step
@@ -308,7 +323,7 @@ class When2Talk(nn.Module):
         output  = tgt[0, :]
 
         for i in range(1, maxlen):
-            output, hidden = self.decoder(output, hidden, context_output)
+            output, hidden = self.decoder(output, hidden, context_output_de)
             outputs[i] = output
             is_teacher = random.random() < self.teach_force
             top1 = output.data.max(1)[1]
@@ -341,18 +356,11 @@ class When2Talk(nn.Module):
         turns = torch.stack(turns)     # [turn, batch, hidden]
 
         # GCN Context encoding
-        x = torch.cat([turns, subatch], 2)    # [turn, batch, hidden + user_embed_size]
-        context_output = self.gcncontext(gbatch, x)    # [batch, turn, hidden]
-        context_output = context_output.permute(1, 0, 2)    # [turn, batch, hidden]
+        # [batch, turn, hidden]
+        context_output_de, context_output_ge = self.gcncontext(gbatch, turns, subatch)
+        # context_output = context_output.permute(1, 0, 2)    # [turn, batch, hidden]
         
-        # ========== final hidden state ==========
-        if self.contextrnn:
-            # context_output: [seq_len, batch, decoder_hidden]
-            # hidden: [batch, decoder_hidden]
-            context_output, hidden = self.contextrnn(context_output)
-            hidden = hidden.squeeze(0)
-        else:
-            hidden = context_output[-1]    # [batch, decoder_hidden]
+        hidden = context_output_de[-1]    # [batch, decoder_hidden]
 
         # decision
         decision_inpt = torch.cat([hidden, tubatch], 1)     # [batch, hidden+user_embed_size]
@@ -363,7 +371,8 @@ class When2Talk(nn.Module):
         # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)     # [batch, 1 + embed_size]
 
         # ========== hidden project ==========
-        hidden = torch.cat([hidden, tubatch], 1)    # [batch, hidden+user_embed]
+        hidden = context_output_ge[-1]
+        hidden = torch.cat([hidden, tubatch], 1)    # [batch, hidden+user_embed+1]
         hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [batch, hidden]
 
         hidden = hidden.unsqueeze(0)     # [1, batch, hidden]
@@ -372,7 +381,7 @@ class When2Talk(nn.Module):
             output = output.cuda()
         
         for i in range(1, maxlen):
-            output, hidden = self.decoder(output, hidden, context_output)
+            output, hidden = self.decoder(output, hidden, context_output_de)
             output = output.max(1)[1]
             outputs[i] = output
 

@@ -24,6 +24,7 @@ from model.HRED_cf import HRED_cf
 from model.when2talk import When2Talk
 from model.GCNRNN import GCNRNN
 from model.GatedGCN import GatedGCN
+from model.GatedGCN_nobi import GatedGCN_nobi
 from model.W2T_RNN_First import W2T_RNN_First
 from model.W2T_GCNRNN import W2T_GCNRNN
 from model.layers import *
@@ -217,6 +218,15 @@ def main(**kwargs):
                        sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'],
                        utter_n_layer=kwargs['utter_n_layer'],
                        context_threshold=kwargs['context_threshold'])
+    elif kwargs['model'] == 'GatedGCN_nobi':
+        net = GatedGCN_nobi(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
+                       kwargs['utter_hidden'], kwargs['context_hidden'],
+                       kwargs['decoder_hidden'], kwargs['position_embed_size'],
+                       user_embed_size=kwargs['user_embed_size'],
+                       teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
+                       sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'],
+                       utter_n_layer=kwargs['utter_n_layer'],
+                       context_threshold=kwargs['context_threshold'])
     elif kwargs['model'] == 'W2T_RNN_First':
         net = W2T_RNN_First(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'], 
                             kwargs['utter_hidden'], kwargs['context_hidden'],
@@ -309,24 +319,27 @@ def main(**kwargs):
         writer.add_scalar(f'{kwargs["dataset"]}-{kwargs["model"]}-Loss/dev', val_loss, epoch)
 
         if not best_val_loss or val_loss < best_val_loss:
-            state = {'net': net.state_dict(), 'epoch': epoch}
-            torch.save(state, 
-                       f'./ckpt/{kwargs["dataset"]}/{kwargs["model"]}/vloss_{val_loss}_epoch_{epoch}.pt')
             best_val_loss = val_loss
             patience = 0
         else:
             patience += 1
+                          
+        # save all the checkpoints
+        state = {'net': net.state_dict(), 'epoch': epoch}
+        torch.save(state,
+                   f'./ckpt/{kwargs["dataset"]}/{kwargs["model"]}/vloss_{val_loss}_epoch_{epoch}.pt')
         
         pbar.set_description(f'Epoch: {epoch}, val_loss: {val_loss}, val_ppl: {round(math.exp(val_loss), 4)}, patience: {patience}/{kwargs["patience"]}')
 
-        if patience > kwargs['patience']:
-            print(f'Early Stop {kwargs["patience"]} at epoch {epoch}')
-            break
+        # if patience > kwargs['patience']:
+        #     print(f'Early Stop {kwargs["patience"]} at epoch {epoch}')
+        #     break
 
     pbar.close()
 
     # test
-    load_best_model(kwargs["dataset"], kwargs['model'], net, threshold=kwargs['epoch_threshold'])
+    load_best_model(kwargs["dataset"], kwargs['model'], net, 
+                    kwargs['min_threshold'], kwargs['max_threshold'])
     if kwargs['cf'] == 1:
         test_loss, test_acc = test(test_iter, net, len(tgt_w2idx), tgt_w2idx['<pad>'], cf=kwargs['cf'], graph=kwargs['graph']==1)
         print(f'Test lm loss: {test_loss}, test ppl: {round(math.exp(test_loss), 4)}, test acc: {test_acc}')
@@ -345,7 +358,9 @@ if __name__ == "__main__":
     parser.add_argument('--tgt_test', type=str, default=None, help='tgt test file')
     parser.add_argument('--src_dev', type=str, default=None, help='src dev file')
     parser.add_argument('--tgt_dev', type=str, default=None, help='tgt dev file')
-    parser.add_argument('--epoch_threshold', type=int, default=20, 
+    parser.add_argument('--min_threshold', type=int, default=20, 
+                        help='epoch threshold for loading best model')
+    parser.add_argument('--max_threshold', type=int, default=20, 
                         help='epoch threshold for loading best model')
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size')

@@ -93,6 +93,12 @@ Evaluate the result of the translated utterances
 ./run.sh eval ubuntu hred 4
 ```
 
+Generate performance curve
+
+```python
+./run.sh curve dailydialog hred-cf 0
+```
+
 ## Experiment Result
 
 ```markdown
@@ -126,169 +132,169 @@ wait to do:
     
         Proposed classified methods need to be cascaded to calculate the BLEU4, BERTScore (the same format as the traditional models' results)
     
-    <table align="center">
-      <tr>
-        <th align="center" rowspan="2">Model</th>
-        <th align="center" colspan="4">Dailydialog</th>
-        <th align="center" colspan="4">Cornell</th>
-      </tr>
-      <tr>
-        <td align="center">BLEU</td>
-        <td align="center">Dist-1</td>
-        <td align="center">Dist-2</td>
-        <td align="center">PPL</td>
-        <td align="center">BLEU</td>
-        <td align="center">Dist-1</td>
-        <td align="center">Dist-2</td>
-        <td align="center">PPL</td>
-      </tr>
-      <tr>
-        <td align="center">Seq2Seq</td>
-        <td>0.1038</td>
-        <td>0.0178</td>
-        <td>0.072</td>
-        <td>29.0640</td>
-        <td>0.0843</td>
-        <td>0.0052</td>
-        <td>0.0164</td>
-        <td>45.1504</td>
-      </tr>
-      <tr>
-        <td align="center">HRED</td>
-        <td>0.1175</td>
-        <td>0.0176</td>
-        <td>0.0571</td>
-        <td>29.7402</td>
-        <td>0.0823</td>
-        <td>0.0227</td>
-        <td>0.0524</td>
-        <td>39.9009</td>
-      </tr>
-      <tr>
-        <td align="center">HRED-CF</td>
-        <td>0.1270</td>
-        <td>0.0254</td>
-        <td>0.0713</td>
-        <td>22.4121</td>
-        <td>0.1116</td>
-        <td>0.0094</td>
-        <td>0.0228</td>
-        <td>38.2598</td>
-      </tr>
-      <tr>
-        <td align="center">When2Talk</td>
-        <td>0.1226</td>
-        <td>0.0211</td>
-        <td>0.0608</td>
-        <td>24.0131</td>
-        <td>0.0996</td>
-        <td>0.0036</td>
-        <td>0.0073</td>
-        <td>32.9503</td>
-      </tr>
-      <tr>
-        <td align="center">W2T_RNN_First</td>
-        <td>0.1244</td>
-        <td>0.0268</td>
-        <td>0.0787</td>
-        <td>24.5056</td>
-        <td>0.1118</td>
-        <td>0.0065</td>
-        <td>0.0147</td>
-        <td>33.754</td>
-      </tr>
-      <tr>
-        <td align="center">GCNRNN</td>
-        <td>0.1250</td>
-        <td>0.0214</td>
-        <td>0.0624</td>
-        <td>23.9867</td>
-        <td>0.1072</td>
-        <td>0.0077</td>
-        <td>0.0188</td>
-        <td>33.9572</td>
-      </tr>
-      <tr>
-        <td align="center">W2T_GCNRNN</td>
-        <td>0.1246</td>
-        <td>0.0152</td>
-        <td>0.0400</td>
-        <td>23.4434</td>
-        <td>0.1107</td>
-        <td>0.0063</td>
-        <td>0.0142</td>
-        <td>34.4256</td>
-      </tr>
-      <tr>
-        <td align="center">GatedGCN</td>
-        <td>0.1311</td>
-        <td>0.0273</td>
-        <td>0.0772</td>
-        <td>23.8456</td>
-        <td>0.1127</td>
-        <td>0.0062</td>
-        <td>0.0149</td>
-        <td>34.2847</td>
-      </tr>
-    </table>
+        <table align="center">
+          <tr>
+            <th align="center" rowspan="2">Model</th>
+            <th align="center" colspan="4">Dailydialog</th>
+            <th align="center" colspan="4">Cornell</th>
+          </tr>
+          <tr>
+            <td align="center">BLEU</td>
+            <td align="center">Dist-1</td>
+            <td align="center">Dist-2</td>
+            <td align="center">PPL</td>
+            <td align="center">BLEU</td>
+            <td align="center">Dist-1</td>
+            <td align="center">Dist-2</td>
+            <td align="center">PPL</td>
+          </tr>
+          <tr>
+            <td align="center">Seq2Seq</td>
+            <td>0.1038</td>
+            <td>0.0178</td>
+            <td>0.072</td>
+            <td>29.0640</td>
+            <td>0.0843</td>
+            <td>0.0052</td>
+            <td>0.0164</td>
+            <td>45.1504</td>
+          </tr>
+          <tr>
+            <td align="center">HRED</td>
+            <td>0.1175</td>
+            <td>0.0176</td>
+            <td>0.0571</td>
+            <td>29.7402</td>
+            <td>0.0823</td>
+            <td>0.0227</td>
+            <td>0.0524</td>
+            <td>39.9009</td>
+          </tr>
+          <tr>
+            <td align="center">HRED-CF</td>
+            <td>0.1268</td>
+            <td>0.0435</td>
+            <td>0.1567</td>
+            <td>29.0111</td>
+            <td>0.1132</td>
+            <td>0.0221</td>
+            <td>0.0691</td>
+            <td>38.5633</td>
+          </tr>
+          <tr>
+            <td align="center">When2Talk</td>
+            <td>0.1226</td>
+            <td>0.0211</td>
+            <td>0.0608</td>
+            <td>24.0131</td>
+            <td>0.0996</td>
+            <td>0.0036</td>
+            <td>0.0073</td>
+            <td>32.9503</td>
+          </tr>
+          <tr>
+            <td align="center">W2T_RNN_First</td>
+            <td>0.1244</td>
+            <td>0.0268</td>
+            <td>0.0787</td>
+            <td>24.5056</td>
+            <td>0.1118</td>
+            <td>0.0065</td>
+            <td>0.0147</td>
+            <td>33.754</td>
+          </tr>
+          <tr>
+            <td align="center">GCNRNN</td>
+            <td>0.1250</td>
+            <td>0.0214</td>
+            <td>0.0624</td>
+            <td>25.8213</td>
+            <td>0.1072</td>
+            <td>0.0077</td>
+            <td>0.0188</td>
+            <td>33.9572</td>
+          </tr>
+          <tr>
+            <td align="center">W2T_GCNRNN</td>
+            <td>0.1246</td>
+            <td>0.0152</td>
+            <td>0.0400</td>
+            <td>23.4434</td>
+            <td>0.1107</td>
+            <td>0.0063</td>
+            <td>0.0142</td>
+            <td>34.4256</td>
+          </tr>
+          <tr>
+            <td align="center">GatedGCN</td>
+            <td>0.1231</td>
+            <td>0.0423</td>
+            <td>0.1609</td>
+            <td>27.1615</td>
+            <td>0.1157</td>
+            <td>0.0261</td>
+            <td>0.0873</td>
+            <td>34.4256</td>
+          </tr>
+        </table>
 
     * F1 metric for measuring the accuracy for the timing of the speaking, only for classified methods (hred-cf, ...). The stat data shows that the number of the negative label is the half of the number of the positive label. **F1** and **Acc** maybe suitable for mearusing the result instead of the F1. In this settings, we care more about the precision in F1 metric.
 
-    <table align="center">
-      <tr>
-        <th align="center" rowspan="2">Model</th>
-        <th align="center" colspan="2">Dailydialog</th>
-        <th align="center" colspan="2">Cornell</th>
-      </tr>
-      <tr>
-        <td align="center">Acc</td>
-        <td align="center">F1</td>
-        <td align="center">Acc</td>
-        <td align="center">F1</td>
-      </tr>
-      <tr>
-        <td>HRED-CF</td>
-        <td>0.8219</td>
-        <td>0.8635</td>
-        <td>0.7708</td>
-        <td>0.8427</td>
-      </tr>
-      <tr>
-        <td>When2Talk</td>
-        <td>0.7992</td>
-        <td>0.8507</td>
-        <td>0.7616</td>
-        <td>0.8388</td>
-      </tr>
-      <tr>
-        <td>W2T_RNN_First</td>
-        <td>0.8144</td>
-        <td>0.8584</td>
-        <td>0.7481</td>
-        <td>0.8312</td>
-      </tr>
-      <tr>
-        <td>GCNRNN</td>
-        <td>0.8176</td>
-        <td>0.8635</td>
-        <td>0.7598</td>
-        <td>0.8445</td>
-      </tr>
-      <tr>
-        <td>W2T_GCNRNN</td>
-        <td>0.7565</td>
-        <td>0.8434</td>
-        <td>0.7853</td>
-        <td>0.8466</td>
-      </tr>
-      <tr>
-        <td>GatedGCN</td>
-        <td>0.8227</td>
-        <td>0.8664</td>
-        <td>0.7594</td>
-        <td>0.8445</td>
-      </tr>
-    </table>
+        <table align="center">
+          <tr>
+            <th align="center" rowspan="2">Model</th>
+            <th align="center" colspan="2">Dailydialog</th>
+            <th align="center" colspan="2">Cornell</th>
+          </tr>
+          <tr>
+            <td align="center">Acc</td>
+            <td align="center">F1</td>
+            <td align="center">Acc</td>
+            <td align="center">F1</td>
+          </tr>
+          <tr>
+            <td>HRED-CF</td>
+            <td>0.8272</td>
+            <td>0.8666</td>
+            <td>0.7708</td>
+            <td>0.8427</td>
+          </tr>
+          <tr>
+            <td>When2Talk</td>
+            <td>0.7992</td>
+            <td>0.8507</td>
+            <td>0.7616</td>
+            <td>0.8388</td>
+          </tr>
+          <tr>
+            <td>W2T_RNN_First</td>
+            <td>0.8144</td>
+            <td>0.8584</td>
+            <td>0.7481</td>
+            <td>0.8312</td>
+          </tr>
+          <tr>
+            <td>GCNRNN</td>
+            <td>0.8176</td>
+            <td>0.8635</td>
+            <td>0.7598</td>
+            <td>0.8445</td>
+          </tr>
+          <tr>
+            <td>W2T_GCNRNN</td>
+            <td>0.7565</td>
+            <td>0.8434</td>
+            <td>0.7853</td>
+            <td>0.8466</td>
+          </tr>
+          <tr>
+            <td>GatedGCN</td>
+            <td>0.8226</td>
+            <td>0.8663</td>
+            <td>0.738</td>
+            <td>0.8181</td>
+          </tr>
+        </table>
 
 
 2. Human judgments (engaging, ...)

@@ -7,11 +7,13 @@ dataset=$2
 model=$3
 cuda=$4
 
+epoch=30
+
 # dataset for plus
 if [ $dataset = 'cornell' ]; then
-    plus=6
+    plus=0
 else
-    plus=6
+    plus=0
 fi
 
 # hierarchical
@@ -44,6 +46,10 @@ elif [ $model = 'W2T_GCNRNN' ]; then
     cf=1
     graph=1
 elif [ $model = 'GatedGCN' ]; then
+    hierarchical=1
+    cf=1
+    graph=1
+elif [ $model = 'GatedGCN_nobi' ]; then
     hierarchical=1
     cf=1
     graph=1
@@ -98,7 +104,7 @@ elif [ $mode = 'stat' ]; then
     python utils.py \
          --mode stat \
          --graph ./processed/$dataset/train-graph.pkl \
-         --hops 3 
+         --hops 3
          
     python utils.py \
          --mode stat \
@@ -162,7 +168,8 @@ elif [ $mode = 'train' ]; then
         --train_graph ./processed/$dataset/train-graph.pkl \
         --test_graph ./processed/$dataset/test-graph.pkl \
         --dev_graph ./processed/$dataset/dev-graph.pkl \
-        --epoch_threshold 0 \
+        --min_threshold 0 \
+        --max_threshold $epoch \
         --lr 1e-4 \
         --batch_size $batch_size \
         --weight_decay 1e-6 \
@@ -176,7 +183,7 @@ elif [ $mode = 'train' ]; then
         --embed_size 300 \
         --patience 10 \
         --grad_clip 3 \
-        --epochs 50 \
+        --epochs $epoch \
         --src_vocab ./processed/$dataset/iptvocab.pkl \
         --tgt_vocab ./processed/$dataset/optvocab.pkl \
         --maxlen $maxlen \
@@ -187,16 +194,17 @@ elif [ $mode = 'train' ]; then
         --dataset $dataset \
         --position_embed_size 30 \
         --graph $graph \
-        --plus 0 \
+        --plus $plus \
         --contextrnn \
-        --context_threshold 3
+        --context_threshold 2
 
 elif [ $mode = 'translate' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
         --src_test ./data/${dataset}-corpus/$cf_check/src-test.pkl \
         --tgt_test ./data/${dataset}-corpus/$cf_check/tgt-test.pkl \
         --test_graph ./processed/$dataset/test-graph.pkl \
-        --epoch_threshold 0 \
+        --min_threshold 0 \
+        --max_threshold $epoch \
         --batch_size $batch_size \
         --model $model \
         --utter_n_layer 2 \
@@ -218,7 +226,7 @@ elif [ $mode = 'translate' ]; then
         --graph $graph \
         --plus $plus \
         --contextrnn \
-        --context_threshold 3
+        --context_threshold 2
 
 elif [ $mode = 'eval' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python eval.py \
@@ -226,6 +234,55 @@ elif [ $mode = 'eval' ]; then
         --dataset $dataset \
         --file ./processed/$dataset/$model/pred.txt \
         --cf $cf \
+        
+elif [ $mode = 'curve' ]; then
+    # do not add the BERTScore evaluate when begin to curve mode
+    # evaluation will be too slow
+    
+    rm ./processed/${dataset}/${model}/conclusion.txt
+    echo "[!] delete the cache file (conclusion.txt)"
+    
+    for i in $(seq 1 $epoch)
+    do
+        CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
+            --src_test ./data/${dataset}-corpus/$cf_check/src-test.pkl \
+            --tgt_test ./data/${dataset}-corpus/$cf_check/tgt-test.pkl \
+            --test_graph ./processed/$dataset/test-graph.pkl \
+            --min_threshold $i \
+            --max_threshold $i \
+            --batch_size $batch_size \
+            --model $model \
+            --utter_n_layer 2 \
+            --utter_hidden 500 \
+            --context_hidden 500 \
+            --decoder_hidden 500 \
+            --embed_size 300 \
+            --seed 20 \
+            --src_vocab ./processed/$dataset/iptvocab.pkl \
+            --tgt_vocab ./processed/$dataset/optvocab.pkl \
+            --maxlen $maxlen \
+            --pred ./processed/$dataset/$model/pred.txt \
+            --hierarchical $hierarchical \
+            --tgt_maxlen 50 \
+            --cf $cf \
+            --user_embed_size 10 \
+            --dataset $dataset \
+            --position_embed_size 30 \
+            --graph $graph \
+            --plus $plus \
+            --contextrnn \
+            --context_threshold 2
+
+        # eval
+        echo "========== $i eval ==========" >> ./processed/${dataset}/${model}/conclusion.txt
+        CUDA_VISIBLE_DEVICES="$CUDA" python eval.py \
+            --model $model \
+            --cf $cf \
+            --dataset $dataset \
+            --file ./processed/${dataset}/${model}/pred.txt >> ./processed/${dataset}/${model}/conclusion.txt
+            
+    done
+
 
 else
     echo "[!] Wrong mode for running the script"

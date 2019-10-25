@@ -49,8 +49,21 @@ def cal_BERTScore(refer, candidate):
     return np.mean(bert_scores)
 
 
+def cal_acc_f1(tp, fn, fp, tn):
+    # return (macro-f1, micro-f1, Acc)
+    acc = (tp + tn) / (tp + fn + fp + tn)
+    precision_p, precision_n = tp / (tp + fp), tn / (tn + fn)
+    recall_p, recall_n = tp / (tp + fn), tn / (tn + fp)
+    avg_pre, avg_recall = (precision_n + precision_p) / 2, (recall_p + recall_n) / 2
+    macro_f1 = 2 * avg_pre * avg_recall / (avg_pre + avg_recall)
+    mi_pre = (tp + tn) / (tp + fp + tn + fn)
+    mi_rec = (tp + tn) / (tp + fn + tn + fp)
+    micro_f1 = 2 * mi_pre * mi_rec / (mi_pre + mi_rec)
+    return macro_f1, micro_f1, acc
+
+
 def cal_acc_P_R_F1(tp, fn, fp, tn):
-    # cal the F1 metric from the stat data
+    # cal the F1 metric from the stat data of the postive label
     precision = tp / (tp + fp)
     recall = tp / (tp + fn)
     f1 = 2 * precision * recall / (precision + recall)

@@ -4,6 +4,7 @@
 
 from metric.metric import * 
 import argparse
+import ipdb
 
 
 if __name__ == "__main__":
@@ -57,25 +58,27 @@ if __name__ == "__main__":
     assert len(ref) == len(tgt)
 
     # BLEU
-    bleu_sum, counter = 0, 0
+    bleu1_sum, bleu2_sum, bleu3_sum, bleu4_sum, counter = 0, 0, 0, 0, 0
     for rr, cc in zip(ref, tgt):
-        bleu_sum += cal_BLEU([rr], cc, ngram=4)
+        bleu1_sum += cal_BLEU([rr], cc, ngram=1)
+        bleu2_sum += cal_BLEU([rr], cc, ngram=2)
+        bleu3_sum += cal_BLEU([rr], cc, ngram=3)
+        bleu4_sum += cal_BLEU([rr], cc, ngram=4)
         counter += 1
 
     # Distinct-1, Distinct-2
     candidates = []
     for line in tgt:
         candidates.extend(line)
+    # ipdb.set_trace()
     distinct_1, distinct_2 = cal_Distinct(candidates)
 
-    # precision, recall, f1, acc
-    if args.cf == 1:
-        precision, recall, f1, acc = cal_acc_P_R_F1(tp, fn, fp, tn)
-
     print(f'Model {args.model} Result')
-    print(f'BLEU-4: {round(bleu_sum / counter, 4)}')
+    print(f'BLEU-4: {round(bleu4_sum / counter, 4)}')
     print(f'Distinct-1: {round(distinct_1, 4)}; Distinct-2: {round(distinct_2, 4)}')
     # print(f'BERTScore: {round(bert_scores, 4)}')
+    
     if args.cf == 1:
+        macro_f1, micro_f1, acc = cal_acc_f1(tp, fn, fp, tn)
         print(f'Decision Acc: {acc}')
-        print(f'Decision Precision: {precision}, Recall: {recall}, F1: {f1}')
+        print(f'Decision macro-F1: {macro_f1}, Decision micro-F1: {micro_f1}')

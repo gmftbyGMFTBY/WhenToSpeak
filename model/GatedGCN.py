@@ -98,7 +98,7 @@ class GatedGCNContext(nn.Module):
         self.bn2 = nn.BatchNorm1d(num_features=inpt_size)
         self.bn3 = nn.BatchNorm1d(num_features=inpt_size)
 
-        # rnn for background
+        # rnn for background, bidirectional or not?
         self.rnn = nn.GRU(inpt_size + user_embed_size, inpt_size, bidirectional=True)
 
         self.linear1 = nn.Linear(inpt_size * 2, inpt_size)

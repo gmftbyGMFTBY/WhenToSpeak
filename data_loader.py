@@ -148,16 +148,9 @@ def get_batch_data(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen, plus=0):
 
         sbatch, tbatch = src_dataset[fidx:bidx], tgt_dataset[fidx:bidx]
 
-        if len(sbatch[0]) < plus:
+        if len(sbatch[0]) <= plus:
             fidx = bidx
             continue
-            
-            
-        # delete 3/4 low-turns dataset for training
-        # if plus < 0 and len(sbatch[0]) < abs(plus):
-        #     if random.random() > 0.25:
-        #         fidx = bidx
-        #         continue
                 
 
         shuffleidx = np.arange(0, len(sbatch))
@@ -237,16 +230,9 @@ def get_batch_data_cf(src, tgt, src_vocab, tgt_vocab, batch_size, maxlen, plus=0
 
         sbatch, tbatch, subatch, tubatch, lbatch = src_dataset[fidx:bidx], tgt_dataset[fidx:bidx], src_user[fidx:bidx], tgt_user[fidx:bidx], label[fidx:bidx]
 
-        if len(sbatch[0]) < plus:
+        if len(sbatch[0]) <= plus:
             fidx = bidx
             continue
-            
-            
-        # delete 3/4 low-turns dataset for training
-        # if plus < 0 and len(sbatch[0]) < abs(plus):
-        #     if random.random() > 0.25:
-        #         fidx = bidx
-        #         continue
                 
         
         shuffleidx = np.arange(0, len(sbatch))
@@ -342,16 +328,9 @@ def get_batch_data_cf_graph(src, tgt, graph, src_vocab, tgt_vocab, batch_size, m
         gbatch = graph[fidx:bidx]
 
         # check the turn size for the plus experiment mode
-        if len(sbatch[0]) < plus:
+        if len(sbatch[0]) <= plus:
             fidx = bidx
             continue
-            
-            
-        # delete 3/4 low-turns dataset for training
-        # if plus < 0 and len(sbatch[0]) < abs(plus):
-        #     if random.random() > 0.25:
-        #         fidx = bidx
-        #         continue
             
         
         shuffleidx = np.arange(0, len(sbatch))

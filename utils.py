@@ -15,7 +15,6 @@ import os
 import numpy as np
 import torch
 import nltk
-from bert_serving.client import BertClient
 from tqdm import tqdm
 import ipdb
 
@@ -49,7 +48,7 @@ def pad_sequence(pad, batch, bs):
         batch[i].extend([pad] * (maxlen - len(batch[i])))
 
 
-def load_best_model(dataset, model, net, threshold):
+def load_best_model(dataset, model, net, min_threshold, max_threshold):
     path = f'./ckpt/{dataset}/{model}/'
     best_loss, best_file, best_epoch = np.inf, None, -1
 
@@ -58,13 +57,13 @@ def load_best_model(dataset, model, net, threshold):
         epoch = epoch.split('.')[0]
         val_loss, epoch = float(val_loss), int(epoch)
 
-        if epoch >= threshold and val_loss < best_loss:
+        if min_threshold <= epoch <= max_threshold and epoch > best_epoch:
             best_file = file
-            best_loss = val_loss
+            best_epoch = epoch
 
     if best_file:
         file_path = path + best_file
-        print(f'[!] Load the model from {file_path}, threshold {threshold}')
+        print(f'[!] Load the model from {file_path}, threshold ({min_threshold}, {max_threshold})')
         net.load_state_dict(torch.load(file_path)['net'])
     else:
         raise Exception('[!] No saved model')
@@ -206,7 +205,7 @@ def load_data_cf(src, tgt, src_vocab, tgt_vocab, maxlen):
     src_dataset, tgt_dataset, src_user, tgt_user, label = [], [], [], [], []
 
     # parse
-    for sexample, texample in zip(src, tgt):
+    for sexample, texample in tqdm(zip(src, tgt)):
         # parse src
         turns, srcu = [], []
         for user, utterance in sexample:
@@ -300,24 +299,25 @@ def analyse_graph(path, hops=3):
                         n, nidx = tools[tidx]
                     except:
                         break
-                    if nidx < hops:
+                    if nidx < hops and e.get(n, None):
                         for src in e[n]:
                             if src not in tools:
                                 tools.append((src, nidx + 1))
                             if src not in coverage_nodes:
                                 coverage_nodes.append(src)
                     tidx += 1
-                collector.append((len(context_nodes), len(coverage_nodes)))
+                collector.append((len(coverage_nodes), len(context_nodes)))
         return collector
+    
+    
+    def avg_degree()
         
     graph = load_pickle(path)    # [datasize, ([2, num_edge], [num_edge])]
     avg_cover = []
     for idx, (edges, _) in enumerate(tqdm(graph)):
         # make sure the number of the nodes
-        nodes = []
-        for i, j in zip(edges[0], edges[1]):
-            if i == j and i not in nodes:
-                nodes.append(i)
+        max_n = max(edges[1]) + 1 if edges[1] else 1
+        nodes = list(range(max_n))
         avg_cover.extend(coverage(nodes, edges))
         
     # ========== stat ========== #
