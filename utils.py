@@ -17,6 +17,7 @@ import torch
 import nltk
 from tqdm import tqdm
 import ipdb
+import heapq
 
 
 def load_pickle(path):
@@ -69,7 +70,7 @@ def load_best_model(dataset, model, net, min_threshold, max_threshold):
         raise Exception('[!] No saved model')
 
 
-def create_the_graph(turns, weights=[1, 1], threshold=0.75, bidir=True):
+def create_the_graph(turns, weights=[1, 1], threshold=4, bidir=True):
     '''create the weighted directed graph of one conversation
     sequenutial edge, user connected edge, [BERT/PMI] edge
     param: turns: [turns(user, utterance)]
@@ -89,17 +90,23 @@ def create_the_graph(turns, weights=[1, 1], threshold=0.75, bidir=True):
     # for i in range(turn_len):
     #     edges[(i, i)] = [1]
 
-    # user connected edges
+    # user connected edges, fix the weight
+    counter = {i:1 for i in range(1, turn_len)}    # add the counter
     for i in range(turn_len):
         for j in range(turn_len):
             if j > i:
                 useri, _ = turns[i]
                 userj, _ = turns[j]
+                # u_w = min(max(0.5 - 1 / (j - i), 0.1), 0.5)
+                # add the counter
+                # if useri == userj and counter[j] < threshold:
                 if useri == userj:
                     if edges.get((i, j), None):
                         edges[(i, j)].append(u_w)
                     else:
                         edges[(i, j)] = [u_w]
+                    # add the counter
+                    counter[j] += 1
                     ue += 1
 
     # BERT edges, correlation is measured by the BERT embedding, slow
@@ -139,11 +146,14 @@ def create_the_graph(turns, weights=[1, 1], threshold=0.75, bidir=True):
             e[0].append(tgt)
             e[1].append(src)
             w.append(max(edges[(src, tgt)]))
+            
+    # if the in degree is bigger than threshold, 
+    # delete (l - threshold) closest edges
 
     return (e, w), se, ue, pe
 
 
-def generate_graph(dialogs, path, threshold=0.75, bidir=True):
+def generate_graph(dialogs, path, threshold=4, bidir=True):
     # dialogs: [datasize, turns]
     # return: [datasize, (2, num_edges)/ (num_edges)]
     # **make sure the bert-as-service is running**
@@ -310,10 +320,38 @@ def analyse_graph(path, hops=3):
         return collector
     
     
-    def avg_degree()
+    def avg_degree(ipt, opt):
+        nodes = {}
+        for ind, outd in zip(ipt, opt):
+            if ind not in nodes:
+                nodes[ind] = [0, 1]
+            else:
+                nodes[ind][1] += 1
+            if outd not in nodes:
+                nodes[outd] = [1, 0]
+            else:
+                nodes[outd][0] += 1
+        if nodes:
+            ind, outd = [i for i, j in nodes.items()], [j for i, j in nodes.items()]
+            return np.mean(ind), np.mean(outd)
+        else:
+            return None, None
         
     graph = load_pickle(path)    # [datasize, ([2, num_edge], [num_edge])]
-    avg_cover = []
+    avg_cover, avg_ind, avg_outd = [], [], []
+    
+    # degree analyse
+    for idx, (edges, _) in enumerate(tqdm(graph)):
+        a, b = avg_degree(*edges)
+        if a:
+            avg_ind.append(a)
+        if b:
+            avg_outd.append(b)
+        
+    print(f'[!] the avg in degree: {round(np.mean(avg_ind), 4)}')
+    print(f'[!] the avg out degree: {round(np.mean(avg_outd), 4)}')
+    
+    # coverage
     for idx, (edges, _) in enumerate(tqdm(graph)):
         # make sure the number of the nodes
         max_n = max(edges[1]) + 1 if edges[1] else 1
@@ -336,7 +374,7 @@ if __name__ == "__main__":
     parser.add_argument('--graph', type=str, default=None)
     parser.add_argument('--cutoff', type=int, default=50000,
             help='cutoff of the vocabulary')
-    parser.add_argument('--threshold', type=float, default=0.75,
+    parser.add_argument('--threshold', type=float, default=4,
             help='threshold for measuring the similarity between the utterances')
     parser.add_argument('--maxlen', type=int, default=50)
     parser.add_argument('--src_vocab', type=str, default=None)

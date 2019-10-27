@@ -127,7 +127,7 @@ elif [ $mode = 'graph' ]; then
          --src ./data/${dataset}-corpus/cf/src-train.pkl \
          --tgt ./data/${dataset}-corpus/cf/tgt-train.pkl \
          --graph ./processed/$dataset/train-graph.pkl \
-         --threshold 0.75 \
+         --threshold 4 \
          --no-bidir
 
     python utils.py \
@@ -138,7 +138,7 @@ elif [ $mode = 'graph' ]; then
         --src ./data/${dataset}-corpus/cf/src-test.pkl \
         --tgt ./data/${dataset}-corpus/cf/tgt-test.pkl \
         --graph ./processed/$dataset/test-graph.pkl \
-        --threshold 0.75 \
+        --threshold 4 \
         --no-bidir
 
     python utils.py \
@@ -149,7 +149,7 @@ elif [ $mode = 'graph' ]; then
         --src ./data/${dataset}-corpus/cf/src-dev.pkl \
         --tgt ./data/${dataset}-corpus/cf/tgt-dev.pkl \
         --graph ./processed/$dataset/dev-graph.pkl \
-        --threshold 0.75 \
+        --threshold 4 \
         --no-bidir
 
 elif [ $mode = 'train' ]; then
@@ -286,6 +286,7 @@ elif [ $mode = 'curve' ]; then
 
 else
     echo "[!] Wrong mode for running the script"
+    
 fi
 
 echo "========== $mode done =========="

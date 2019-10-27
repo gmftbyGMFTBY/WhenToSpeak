@@ -118,7 +118,7 @@ wait to do:
     * HRED-CF: HRED model with classification for talk timing
     * When2Talk: GCNContext modeling first and RNN Context later
     * W2T_RNN_First: **Bi**RNN Context modeling first and GCNContext later
-    * GCNRNN: combine the GCNContext and RNNContext together
+    * GCNRNN: combine the Gated GCNContext and RNNContext together (?)
     * GatedGCN: combine the Gated GCNContext and RNNContext together
         1. BiRNN for background modeling
         2. Gated GCN for context modeling

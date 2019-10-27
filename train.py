@@ -200,7 +200,8 @@ def main(**kwargs):
                      user_embed_size=kwargs['user_embed_size'],
                      teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
                      sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'],
-                     utter_n_layer=kwargs['utter_n_layer'])
+                     utter_n_layer=kwargs['utter_n_layer'],
+                     context_threshold=kwargs['context_threshold'])
     elif kwargs['model'] == 'W2T_GCNRNN':
         net = W2T_GCNRNN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
                          kwargs['utter_hidden'], kwargs['context_hidden'],

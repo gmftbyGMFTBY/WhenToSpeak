@@ -91,7 +91,8 @@ def translate(**kwargs):
                      kwargs['decoder_hidden'], kwargs['position_embed_size'], 
                      user_embed_size=kwargs['user_embed_size'],
                      sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
-                     utter_n_layer=kwargs['utter_n_layer'])
+                     utter_n_layer=kwargs['utter_n_layer'],
+                     context_threshold=kwargs['context_threshold'])
     elif kwargs['model'] == 'W2T_GCNRNN':
         net = W2T_GCNRNN(len(src_w2idx), len(tgt_w2idx),
                          kwargs['embed_size'],

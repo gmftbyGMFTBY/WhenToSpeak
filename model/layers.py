@@ -177,6 +177,8 @@ class My_GatedGCN(MessagePassing):
     https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html
     
     x_i^k = x_i^{k-1} + \eta \sum_{j\in N(i)} e_{ij} * GRU(x_i^{k-1}, x_j^{k-1})
+    
+    aggregation method use the `mean` (`add` is not good?)
     '''
     
     def __init__(self, in_channels, out_channels, kernel):
@@ -203,8 +205,53 @@ class My_GatedGCN(MessagePassing):
     def update(self, aggr_out, x):
         # aggr_out has shape [N, in_channels]
         # x has shape [N, in_channels]
-        
         aggr_out = aggr_out + x
+        aggr_out = self.linear(aggr_out)    # [N, out_channels]
+        return aggr_out
+    
+    def __repr__(self):
+        return '{}(in_channels={}, out_channels={})'.format(
+            self.__class__.__name__, self.in_channels, self.out_channels)
+    
+    
+class My_DoubleGatedGCN(MessagePassing):
+    
+    '''
+    GCN with Gated mechanism
+    Help with the tutorial of the pytorch_geometric:
+    https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html
+    
+    x_i^k = x_i^{k-1} + \eta \sum_{j\in N(i)} e_{ij} * GRU(x_i^{k-1}, x_j^{k-1})
+    
+    aggregation method use the `mean` (`add` is not good?)
+    '''
+    
+    def __init__(self, in_channels, out_channels, kernel1, kernel2):
+        super(My_DoubleGatedGCN, self).__init__(aggr='mean')
+        
+        # kernel is a Gated GRUCell
+        self.rnn1 = kernel1
+        self.rnn2 = kernel2
+        self.linear = nn.Linear(in_channels, out_channels)
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        
+    def forward(self, x, edge_index, edge_weight=None):
+        # x: [N, in_channels], edge_index: [2, E]
+        return self.propagate(edge_index, size=(x.size(0), x.size(0)), 
+                              x=x, edge_weight=edge_weight)
+    
+    def message(self, x_i, x_j, edge_weight):
+        # x_i has shape [E, in_channels]
+        # x_j has shape [E, in_channels]
+        # edge_weight has shape [E]
+        x = self.rnn1(x_i, x_j)        # [E, in_channels]
+        return edge_weight.view(-1, 1) * x
+    
+    def update(self, aggr_out, x):
+        # aggr_out has shape [N, in_channels]
+        # x has shape [N, in_channels]
+        aggr_out = self.rnn2(aggr_out, x)
         aggr_out = self.linear(aggr_out)    # [N, out_channels]
         return aggr_out
     
