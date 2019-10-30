@@ -95,19 +95,29 @@ def create_the_graph(turns, weights=[1, 1], threshold=4, bidir=True):
     for i in range(turn_len):
         for j in range(turn_len):
             if j > i:
-                useri, _ = turns[i]
-                userj, _ = turns[j]
+                # useri, _ = turns[i]
+                # userj, _ = turns[j]
                 # u_w = min(max(0.5 - 1 / (j - i), 0.1), 0.5)
                 # add the counter
                 # if useri == userj and counter[j] < threshold:
-                if useri == userj:
-                    if edges.get((i, j), None):
-                        edges[(i, j)].append(u_w)
-                    else:
-                        edges[(i, j)] = [u_w]
-                    # add the counter
-                    counter[j] += 1
-                    ue += 1
+                # if useri == userj:
+                #     if edges.get((i, j), None):
+                #         edges[(i, j)].append(u_w)
+                #     else:
+                #         edges[(i, j)] = [u_w]
+                #     # add the counter
+                #     counter[j] += 1
+                #     ue += 1
+                
+                # absolute graph
+                # if edges.get((i, j), None):
+                #     edges[(i, j)].append(u_w)
+                # else:
+                #     edges[(i, j)] = [u_w]
+                # ue += 1
+                
+                # sparse graph
+                pass
 
     # BERT edges, correlation is measured by the BERT embedding, slow
     '''

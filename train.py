@@ -27,6 +27,7 @@ from model.GatedGCN import GatedGCN
 from model.GatedGCN_nobi import GatedGCN_nobi
 from model.W2T_RNN_First import W2T_RNN_First
 from model.W2T_GCNRNN import W2T_GCNRNN
+from model.GATRNN import GATRNN
 from model.layers import *
 
 
@@ -193,6 +194,15 @@ def main(**kwargs):
                         sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'], 
                         utter_n_layer=kwargs['utter_n_layer'],
                         contextrnn=kwargs['contextrnn'])
+    elif kwargs['model'] == 'GATRNN':
+        net = GATRNN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'], 
+                        kwargs['utter_hidden'], kwargs['context_hidden'],
+                        kwargs['decoder_hidden'], kwargs['position_embed_size'],
+                        user_embed_size=kwargs['user_embed_size'],
+                        teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
+                        sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'], 
+                        utter_n_layer=kwargs['utter_n_layer'],
+                        context_threshold=kwargs['context_threshold'])
     elif kwargs['model'] == 'GCNRNN':
         net = GCNRNN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
                      kwargs['utter_hidden'], kwargs['context_hidden'],

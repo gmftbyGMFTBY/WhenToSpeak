@@ -27,6 +27,7 @@ from model.GatedGCN import GatedGCN
 from model.W2T_RNN_First import W2T_RNN_First
 from model.W2T_GCNRNN import W2T_GCNRNN
 from model.GatedGCN_nobi import GatedGCN_nobi
+from model.GATRNN import GATRNN
 
 
 def translate(**kwargs):
@@ -85,6 +86,14 @@ def translate(**kwargs):
                         sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
                         utter_n_layer=kwargs['utter_n_layer'],
                         contextrnn=kwargs['contextrnn'])
+    elif kwargs['model'] == 'GATRNN':
+        net = GATRNN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
+                        kwargs['utter_hidden'], kwargs['context_hidden'],
+                        kwargs['decoder_hidden'], kwargs['position_embed_size'], 
+                        user_embed_size=kwargs['user_embed_size'],
+                        sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
+                        utter_n_layer=kwargs['utter_n_layer'],
+                        context_threshold=kwargs['context_threshold'])
     elif kwargs['model'] == 'GCNRNN':
         net = GCNRNN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
                      kwargs['utter_hidden'], kwargs['context_hidden'],

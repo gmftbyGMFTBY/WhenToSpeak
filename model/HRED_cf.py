@@ -113,6 +113,7 @@ class Context_encoder_cf(nn.Module):
 
         # hidden: [1, batch, hidden_size]
         hidden = hidden.squeeze(0)    # [batch, hidden_size]
+        
         return output, hidden
         
 

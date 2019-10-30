@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-from torch_geometric.nn import GCNConv, TopKPooling
+from torch_geometric.nn import GCNConv, GATConv, TopKPooling
 from torch_geometric.data import Data, DataLoader
 from torch_geometric.nn import MessagePassing
 import math
@@ -221,7 +221,7 @@ class My_DoubleGatedGCN(MessagePassing):
     Help with the tutorial of the pytorch_geometric:
     https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html
     
-    x_i^k = x_i^{k-1} + \eta \sum_{j\in N(i)} e_{ij} * GRU(x_i^{k-1}, x_j^{k-1})
+    x_i^k = GRU(\sum_{j\in N(i)} e_{ij} * GRU(x_i^{k-1}, x_j^{k-1}), x_i^{k-1})
     
     aggregation method use the `mean` (`add` is not good?)
     '''
@@ -258,6 +258,39 @@ class My_DoubleGatedGCN(MessagePassing):
     def __repr__(self):
         return '{}(in_channels={}, out_channels={})'.format(
             self.__class__.__name__, self.in_channels, self.out_channels)
+    
+    
+class My_GATRNNConv(nn.Module):
+    
+    '''
+    GAT with Gated mechanism
+    Help with the tutorial of the pytorch_geometric:
+    https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html
+    
+    x_i^k = GRU(GAT(x_i^{k-1}, x_j^{k-1}), x_{i}^{k-1})
+    '''
+    
+    def __init__(self, in_channels, out_channels, kernel, head=8, dropout=0.5):
+        super(My_GATRNNConv, self).__init__()
+        
+        # kernel is a Gated GRUCell
+        self.rnn = kernel     # [in_channel, out_channel]
+        self.conv = GATConv(in_channels, in_channels, heads=head, dropout=dropout)
+        self.compress = nn.Linear(in_channels * head, in_channels)
+        self.in_channels = in_channels
+        self.opt = nn.Linear(in_channels, out_channels)
+        
+    def forward(self, x, edge_index):
+        # x: [node, in_channels]
+        m = F.dropout(x, p=0.6)
+        m = F.relu(self.conv(m, edge_index))    # [node, 8 * in_channels]
+        m = F.relu(self.compress(m))    # [node, in_channels]
+        x = torch.tanh(self.rnn(m, x))  # [node, in_channels]
+        return self.opt(x)    # [node, out_channels]
+    
+    def __repr__(self):
+        return '{}(in_channels={})'.format(
+            self.__class__.__name__, self.in_channels)
 
 
 
