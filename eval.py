@@ -4,6 +4,7 @@
 
 from metric.metric import * 
 import argparse
+import random
 import ipdb
 
 
@@ -53,8 +54,16 @@ if __name__ == "__main__":
                 else:
                     ref.append(srcline.split())
                     tgt.append(tgtline.split())
-
-
+                    
+    # filter
+    if args.cf == 0:
+        idx_ = random.sample(list(range(len(ref))), int(0.85 * len(ref)))
+        ref = [i for idx, i in enumerate(ref) if idx in idx_]
+        tgt = [i for idx, i in enumerate(tgt) if idx in idx_]
+    else:
+        print(f'[!] test ({len(ref)}|{round(len(ref) / (tp + fn), 4)}) examples')
+        print(f'[!] true acc: {round(tp / (tp + fn), 4)}, false acc: {round(tn / (tn + fp), 4)}')
+        
     assert len(ref) == len(tgt)
 
     # BLEU

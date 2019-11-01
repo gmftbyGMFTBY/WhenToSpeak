@@ -96,15 +96,12 @@ class GATRNNContext(nn.Module):
                                    head=head, dropout=dropout)
         self.conv3 = My_GATRNNConv(size, inpt_size, self.kernel_rnn, 
                                    head=head, dropout=dropout)
-        self.conv4 = My_GATRNNConv(size, inpt_size, self.kernel_rnn, 
-                                   head=head, dropout=dropout)
         self.bn1 = nn.BatchNorm1d(num_features=inpt_size)
         self.bn2 = nn.BatchNorm1d(num_features=inpt_size)
         self.bn3 = nn.BatchNorm1d(num_features=inpt_size)
-        self.bn4 = nn.BatchNorm1d(num_features=inpt_size)
 
         self.linear1 = nn.Linear(inpt_size * 2, inpt_size)
-        self.linear2 = nn.Linear(inpt_size * 2, output_size)
+        self.linear2 = nn.Linear(inpt_size, output_size)
         self.drop = nn.Dropout(p=dropout)
         self.posemb = nn.Embedding(100, posemb_size)    # 100 is far bigger than the max turn lengths
         
@@ -141,10 +138,11 @@ class GATRNNContext(nn.Module):
         turn_size = utter_hidden.size(0)
         
         if turn_size <= self.threshold:
-            return rnn_x
+            rnn_x = self.linear2(rnn_x)
+            return rnn_x, rnn_x
         
         # replace the utter_hidden with the rnn
-        batch, weights = self.create_batch(gbatch, rnn_x)
+        batch, weights = self.create_batch(gbatch, utter_hidden)
         x, edge_index, batch = batch.x, batch.edge_index, batch.batch
         
         # cat pos_embed: [node, posemb_size]
@@ -177,20 +175,19 @@ class GATRNNContext(nn.Module):
         # x2 = F.relu(self.conv2(x1, edge_index))
         x2_ = torch.cat([x2, pos, ub], dim=1)
         x3 = F.relu(self.bn3(self.conv3(x2_, edge_index)))
-        x3_ = torch.cat([x3, pos, ub], dim=1)
-        x4 = F.relu(self.bn4(self.conv4(x3_, edge_index)))
-        # x3 = F.relu(self.conv3(x2, edge_index))
             
         # residual for overcoming over-smoothing, [nodes, hidden_size]
-        x = x1 + x2 + x3 + x4
+        x = x1 + x2 + x3
         x = self.drop(x)
 
         # [nodes/turn_len, output_size]
         # take apart to get the mini-batch
         x = torch.stack(x.chunk(batch_size, dim=0)).permute(1, 0, 2)    # [turn, batch, output_size]
-        x = torch.cat([rnn_x, x], dim=2)
-        x = torch.tanh(self.linear2(x))    # [turn, batch, output_size]
-        return x
+        de_x = self.linear2(x)
+        ge_x = self.linear2(rnn_x)
+        # x = torch.cat([rnn_x, x], dim=2)
+        # x = torch.tanh(self.linear2(x))    # [turn, batch, output_size]
+        return de_x, ge_x
 
     
 class Decoder_w2t(nn.Module):
@@ -305,13 +302,14 @@ class GATRNN(nn.Module):
         # GCN Context encoder
         # context_output: [batch, turn, hidden_size]
         # combine the subatch and turns
-        context_output = self.gcncontext(gbatch, turns, subatch)
+        # context_output = self.gcncontext(gbatch, turns, subatch)
+        de_x, ge_x = self.gcncontext(gbatch, turns, subatch)
         
         # ========== final hidden state ==========
-        hidden = context_output[-1]    # [batch, decoder_hidden]
+        # hidden = context_output[-1]    # [batch, decoder_hidden]
 
         # ========== decision, use the final hidden state above ==========
-        decision_inpt = torch.cat([hidden, tubatch], 1)     # [batch, hidden+10] 
+        decision_inpt = torch.cat([de_x[-1], tubatch], 1)     # [batch, hidden+10] 
         de = self.decision_drop(torch.tanh(self.decision_1(decision_inpt)))
         de = torch.sigmoid(self.decision_2(de)).squeeze(1)     # [batch]
 
@@ -319,7 +317,7 @@ class GATRNN(nn.Module):
         # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 1 + user_embed_size]
 
         # ========== hidden project ==========
-        hidden = torch.cat([hidden, tubatch], 1)    # [batch, hidden+user_embed]
+        hidden = torch.cat([ge_x[-1], tubatch], 1)    # [batch, hidden+user_embed]
         hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [batch, hidden]
 
         # decoding step
@@ -327,7 +325,7 @@ class GATRNN(nn.Module):
         output  = tgt[0, :]
 
         for i in range(1, maxlen):
-            output, hidden = self.decoder(output, hidden, context_output)
+            output, hidden = self.decoder(output, hidden, ge_x)
             outputs[i] = output
             is_teacher = random.random() < self.teach_force
             top1 = output.data.max(1)[1]
@@ -360,13 +358,14 @@ class GATRNN(nn.Module):
         turns = torch.stack(turns)     # [turn, batch, hidden]
 
         # GCN Context encoding
-        context_output = self.gcncontext(gbatch, turns, subatch)    # [batch, turn, hidden]
+        # context_output = self.gcncontext(gbatch, turns, subatch)    # [batch, turn, hidden]
+        de_x, ge_x = self.gcncontext(gbatch, turns, subatch)
         
         # ========== final hidden state ==========
-        hidden = context_output[-1]    # [batch, decoder_hidden]
+        # hidden = context_output[-1]    # [batch, decoder_hidden]
 
         # decision
-        decision_inpt = torch.cat([hidden, tubatch], 1)     # [batch, hidden+user_embed_size]
+        decision_inpt = torch.cat([de_x[-1], tubatch], 1)     # [batch, hidden+user_embed_size]
         de = self.decision_drop(torch.tanh(self.decision_1(decision_inpt))) 
         de = torch.sigmoid(self.decision_2(de)).squeeze(1)     # [batch]
 
@@ -374,7 +373,7 @@ class GATRNN(nn.Module):
         # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)     # [batch, 1 + embed_size]
 
         # ========== hidden project ==========
-        hidden = torch.cat([hidden, tubatch], 1)    # [batch, hidden+user_embed]
+        hidden = torch.cat([ge_x[-1], tubatch], 1)    # [batch, hidden+user_embed]
         hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [batch, hidden]
 
         hidden = hidden.unsqueeze(0)     # [1, batch, hidden]
@@ -383,7 +382,7 @@ class GATRNN(nn.Module):
             output = output.cuda()
         
         for i in range(1, maxlen):
-            output, hidden = self.decoder(output, hidden, context_output)
+            output, hidden = self.decoder(output, hidden, ge_x)
             output = output.max(1)[1]
             outputs[i] = output
 

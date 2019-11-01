@@ -124,6 +124,7 @@ wait to do:
         2. Gated GCN for context modeling
         2. Combine GCN embedding and BiRNN embedding, final embedding
         4. Low-turn examples trained without the GCNConv (only use the BiRNN)
+        5. Separate the decision module and generation module is better
     * W2T_GCNRNN: RNN + GCN combine RNN together (W2T_RNN_First + GCNRNN)
 
 2. Automatic evaluation
