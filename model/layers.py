@@ -291,6 +291,39 @@ class My_GATRNNConv(nn.Module):
     def __repr__(self):
         return '{}(in_channels={})'.format(
             self.__class__.__name__, self.in_channels)
+    
+
+class My_GATRNNConv_shared(nn.Module):
+    
+    '''
+    GAT with Gated mechanism
+    Help with the tutorial of the pytorch_geometric:
+    https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html
+    
+    x_i^k = GRU(GAT(x_i^{k-1}, x_j^{k-1}), x_{i}^{k-1})
+    '''
+    
+    def __init__(self, in_channels, out_channels, kernel, GATkernel, head=8):
+        super(My_GATRNNConv_shared, self).__init__()
+        
+        # kernel is a Gated GRUCell
+        self.rnn = kernel     # [in_channel, out_channel]
+        self.gatkernel = GATkernel
+        self.compress = nn.Linear(in_channels * head, in_channels)
+        self.in_channels = in_channels
+        self.opt = nn.Linear(in_channels, out_channels)
+        
+    def forward(self, x, edge_index):
+        # x: [node, in_channels]
+        m = F.dropout(x, p=0.6)
+        m = F.relu(self.gatkernel(m, edge_index))    # [node, 8 * in_channels]
+        m = F.relu(self.compress(m))    # [node, in_channels]
+        x = torch.tanh(self.rnn(m, x))  # [node, in_channels]
+        return self.opt(x)    # [node, out_channels]
+    
+    def __repr__(self):
+        return '{}(in_channels={})'.format(
+            self.__class__.__name__, self.in_channels)
 
 
 

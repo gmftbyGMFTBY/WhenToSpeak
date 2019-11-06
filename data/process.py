@@ -45,14 +45,17 @@ def process_one_dialog(path, cf):
             if u2 and u2 not in users: users.append(u2)
 
             if cf == 0:
-                if not last_user or last_user == u1:
-                    last_user = u1
-                    cache.append(utterance)
-                else:
-                    uu = " <eou> ".join(cache)
-                    cache = [utterance]
-                    utterances.append((last_user, uu))
-                    last_user = u1
+                # if not last_user or last_user == u1:
+                #     last_user = u1
+                #     cache.append(utterance)
+                # else:
+                #     uu = " <eou> ".join(cache)
+                #     cache = [utterance]
+                #     utterances.append((last_user, uu))
+                #     last_user = u1
+                
+                # fix
+                utterances.append((u1, utterance))
             else:
                 if len(utterances) > 0 and utterance == utterances[-1][-1]:
                     # ignore the useless utterance which is bad for the model

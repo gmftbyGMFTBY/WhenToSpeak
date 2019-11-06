@@ -90,12 +90,10 @@ class GATRNNContext(nn.Module):
         self.threshold = threshold
         
         self.kernel_rnn = nn.GRUCell(size, size)
-        self.conv1 = My_GATRNNConv(size, inpt_size, self.kernel_rnn, 
-                                   head=head, dropout=dropout)
-        self.conv2 = My_GATRNNConv(size, inpt_size, self.kernel_rnn, 
-                                   head=head, dropout=dropout)
-        self.conv3 = My_GATRNNConv(size, inpt_size, self.kernel_rnn, 
-                                   head=head, dropout=dropout)
+        self.kernel_gat = GATConv(size, size, heads=head, dropout=dropout)
+        self.conv1 = My_GATRNNConv_shared(size, inpt_size, self.kernel_rnn, self.kernel_gat, head=head)
+        self.conv2 = My_GATRNNConv_shared(size, inpt_size, self.kernel_rnn, self.kernel_gat, head=head)
+        self.conv3 = My_GATRNNConv_shared(size, inpt_size, self.kernel_rnn, self.kernel_gat, head=head)
         self.bn1 = nn.BatchNorm1d(num_features=inpt_size)
         self.bn2 = nn.BatchNorm1d(num_features=inpt_size)
         self.bn3 = nn.BatchNorm1d(num_features=inpt_size)

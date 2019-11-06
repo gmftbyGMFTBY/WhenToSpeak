@@ -5,7 +5,9 @@
 from metric.metric import * 
 import argparse
 import random
-import ipdb
+from utils import load_word_embedding
+import pickle
+from tqdm import tqdm
 
 
 if __name__ == "__main__":
@@ -14,7 +16,14 @@ if __name__ == "__main__":
     parser.add_argument('--dataset', type=str, default='ubuntu')
     parser.add_argument('--file', type=str, default=None, help='result file')
     parser.add_argument('--cf', type=int, default=1, help='cf mode')
+    parser.add_argument('--embedding', type=str, default='/home/lt/data/File/wordembedding/glove/glove.6B.300d.txt')
+    parser.add_argument('--dim', type=int, default=300)
     args = parser.parse_args()
+    
+    # create the word embedding
+    # dic = load_word_embedding(args.embedding, dimension=args.dim)
+    with open('./data/dict.pkl', 'rb') as f:
+        dic = pickle.load(f)
 
     # load the file data
     tp, fn, fp, tn = 0, 0, 0, 0
@@ -66,13 +75,14 @@ if __name__ == "__main__":
         
     assert len(ref) == len(tgt)
 
-    # BLEU
-    bleu1_sum, bleu2_sum, bleu3_sum, bleu4_sum, counter = 0, 0, 0, 0, 0
-    for rr, cc in zip(ref, tgt):
+    # BLEU and embedding-based metric
+    bleu1_sum, bleu2_sum, bleu3_sum, bleu4_sum, embedding_average_sum, counter = 0, 0, 0, 0, 0, 0
+    for rr, cc in tqdm(zip(ref, tgt)):
         bleu1_sum += cal_BLEU([rr], cc, ngram=1)
         bleu2_sum += cal_BLEU([rr], cc, ngram=2)
         bleu3_sum += cal_BLEU([rr], cc, ngram=3)
         bleu4_sum += cal_BLEU([rr], cc, ngram=4)
+        embedding_average_sum += cal_embedding_average(rr, cc, dic)
         counter += 1
 
     # Distinct-1, Distinct-2
@@ -84,6 +94,7 @@ if __name__ == "__main__":
 
     print(f'Model {args.model} Result')
     print(f'BLEU-4: {round(bleu4_sum / counter, 4)}')
+    print(f'Embedding Average: {round(embedding_average_sum / counter, 4)}')
     print(f'Distinct-1: {round(distinct_1, 4)}; Distinct-2: {round(distinct_2, 4)}')
     # print(f'BERTScore: {round(bert_scores, 4)}')
     

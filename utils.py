@@ -25,6 +25,17 @@ def load_pickle(path):
         obj = pickle.load(f)
     return obj
 
+def load_word_embedding(path, dimension=300):
+    # load chinese or english word embedding
+    unk = np.random.rand(dimension)
+    with open(path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    dic = {}
+    for line in tqdm(lines):
+        dic[line.split()[0]] = np.array([float(f) for f in line.strip().split()[1:]], dtype=np.float)
+    dic['<unk>'] = unk
+    return dic
+
 
 def cos_similarity(gr, ge):
     return np.dot(gr, ge) / (np.linalg.norm(gr) * np.linalg.norm(ge))
