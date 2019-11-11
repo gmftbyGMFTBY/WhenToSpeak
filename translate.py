@@ -21,7 +21,8 @@ from data_loader import *
 from model.seq2seq_attention import Seq2Seq
 from model.HRED import HRED
 from model.HRED_cf import HRED_cf
-from model.when2talk import When2Talk
+from model.when2talk_GCN import When2Talk_GCN
+from model.when2talk_GAT import When2Talk_GAT
 from model.GCNRNN import GCNRNN
 from model.GatedGCN import GatedGCN
 from model.W2T_RNN_First import W2T_RNN_First
@@ -48,6 +49,9 @@ def translate(**kwargs):
             func = get_batch_data_flatten_cf
         else:
             func = get_batch_data_flatten
+            
+    if kwargs['model'] == 'hred':
+        func = get_batch_data_cf
 
     if kwargs['graph'] == 0:
         test_iter = func(kwargs['src_test'], kwargs['tgt_test'],
@@ -78,8 +82,16 @@ def translate(**kwargs):
                       kwargs['decoder_hidden'], pad=tgt_w2idx['<pad>'],
                       sos=tgt_w2idx['<sos>'], utter_n_layer=kwargs['utter_n_layer'],
                       user_embed_size=kwargs['user_embed_size'])
-    elif kwargs['model'] == 'when2talk':
-        net = When2Talk(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
+    elif kwargs['model'] == 'when2talk_GCN':
+        net = When2Talk_GCN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
+                        kwargs['utter_hidden'], kwargs['context_hidden'],
+                        kwargs['decoder_hidden'], kwargs['position_embed_size'], 
+                        user_embed_size=kwargs['user_embed_size'],
+                        sos=tgt_w2idx["<sos>"], pad=tgt_w2idx['<pad>'], 
+                        utter_n_layer=kwargs['utter_n_layer'],
+                        contextrnn=kwargs['contextrnn'])
+    elif kwargs['model'] == 'when2talk_GAT':
+        net = When2Talk_GAT(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'],
                         kwargs['utter_hidden'], kwargs['context_hidden'],
                         kwargs['decoder_hidden'], kwargs['position_embed_size'], 
                         user_embed_size=kwargs['user_embed_size'],
@@ -110,7 +122,6 @@ def translate(**kwargs):
                          kwargs['decoder_hidden'], 
                          kwargs['position_embed_size'],
                          user_embed_size=kwargs['user_embed_size'],
-                     
                          sos=tgt_w2idx["<sos>"],
                          pad=tgt_w2idx['<pad>'],
                      utter_n_layer=kwargs['utter_n_layer'])
@@ -161,7 +172,10 @@ def translate(**kwargs):
                 else:
                     sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
             else:
-                sbatch, tbatch, turn_lengths = batch
+                if kwargs['model'] == 'hred':
+                    sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
+                else:
+                    sbatch, tbatch, turn_lengths = batch
 
             batch_size = tbatch.shape[1]
             if kwargs['hierarchical']:
@@ -180,7 +194,10 @@ def translate(**kwargs):
                 de = (de > 0.5).long().cpu().tolist()
                 label = label.cpu().tolist()
             else:
-                output = net(sbatch, tbatch, turn_lengths)
+                if kwargs['model'] == 'hred':
+                    output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
+                else:
+                    output = net(sbatch, tbatch, turn_lengths)
           
             # [turn, batch, output_size]
             output = torch.max(output, 2)[1]
@@ -225,17 +242,19 @@ def translate(**kwargs):
                     src = ' '.join(num2seq(src, src_idx2w))
 
                 # clean the ref and tgt
-                ref = ref.replace('<1>', '').strip()
-                ref = ref.replace('<0>', '').strip()
-                ref = ref.replace('< 1 >', '').strip()
-                ref = ref.replace('< 0 >', '').strip()
+                # ref = ref.replace('<1>', '').strip()
+                # ref = ref.replace('<0>', '').strip()
+                # ref = ref.replace('< 1 >', '').strip()
+                # ref = ref.replace('< 0 >', '').strip()
 
-                tgt = tgt.replace('<1>', '').strip()
-                tgt = tgt.replace('<0>', '').strip()
-                tgt = tgt.replace('< 1 >', '').strip()
-                tgt = tgt.replace('< 0 >', '').strip()
+                # tgt = tgt.replace('<1>', '').strip()
+                # tgt = tgt.replace('<0>', '').strip()
+                # tgt = tgt.replace('< 1 >', '').strip()
+                # tgt = tgt.replace('< 0 >', '').strip()
 
                 if kwargs['cf'] == 1:
+                    # print the user information before the utterances
+                    # speaker = tubatch[i].cpu().item()
                     f.write(f'- src: {src}\n')
                     if label[i] == 1:
                         f.write(f'+ ref: {ref}\n')

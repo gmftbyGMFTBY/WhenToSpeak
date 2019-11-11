@@ -372,14 +372,21 @@ def analyse_graph(path, hops=3):
     print(f'[!] the avg out degree: {round(np.mean(avg_outd), 4)}')
     
     # coverage
+    avg_nodes, avg_edges = [], []
     for idx, (edges, _) in enumerate(tqdm(graph)):
         # make sure the number of the nodes
         max_n = max(edges[1]) + 1 if edges[1] else 1
         nodes = list(range(max_n))
+        if max_n > 1:
+            avg_nodes.append(max_n)
+        if len(edges) > 1:
+            avg_edges.append(len(edges[0]))
         avg_cover.extend(coverage(nodes, edges))
         
     # ========== stat ========== #
     ratio = [i / j for i, j in avg_cover]
+    print(f'[!] the avg turn length of the context is {round(np.mean(avg_nodes), 4)}')
+    print(f'[!] the avg edges of the context is {round(np.mean(avg_edges), 4)}')
     print(f'[!] the avg graph coverage of the context is {round(np.mean(ratio), 4)}')
 
 

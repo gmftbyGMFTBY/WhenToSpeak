@@ -10,11 +10,7 @@ cuda=$4
 epoch=30
 
 # dataset for plus
-if [ $dataset = 'cornell' ]; then
-    plus=0
-else
-    plus=0
-fi
+plus=0
 
 # hierarchical
 if [ $model = 'seq2seq' ]; then
@@ -23,13 +19,17 @@ if [ $model = 'seq2seq' ]; then
     graph=0
 elif [ $model = 'hred' ]; then
     hierarchical=1
-    cf=0
+    cf=0    # hred with the user embeddings
     graph=0
 elif [ $model = 'hred-cf' ]; then
     hierarchical=1
     cf=1
     graph=0
-elif [ $model = 'when2talk' ]; then
+elif [ $model = 'when2talk_GCN' ]; then
+    hierarchical=1
+    cf=1
+    graph=1
+elif [ $model = 'when2talk_GAT' ]; then
     hierarchical=1
     cf=1
     graph=1

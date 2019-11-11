@@ -21,7 +21,8 @@ from data_loader import *
 from model.seq2seq_attention import Seq2Seq
 from model.HRED import HRED
 from model.HRED_cf import HRED_cf
-from model.when2talk import When2Talk
+from model.when2talk_GCN import When2Talk_GCN
+from model.when2talk_GAT import When2Talk_GAT
 from model.GCNRNN import GCNRNN
 from model.GatedGCN import GatedGCN
 from model.GatedGCN_nobi import GatedGCN_nobi
@@ -72,7 +73,8 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
             # also add the train acc into the tensorboard
             de = (de > 0.5).long()
             acc = (torch.sum(de == label.long()).item()) / len(label)
-            pbar.set_description(f'batch {batch_num}, lm loss: {round(lm_loss.item(), 4)}, de_loss: {round(de_loss.item(), 4)}, total loss: {round(loss.item(), 4)}')
+            de_loss = de_loss.item()
+            pbar.set_description(f'batch {batch_num}, lm loss: {round(lm_loss.item(), 4)}, de_loss: {round(de_loss, 4)}, total loss: {round(loss.item(), 4)}')
             writer.add_scalar(f'{writer_str}/DeAcc-train', acc, idx)
             writer.add_scalar(f'{writer_str}/DeLoss-train', de_loss, idx)
             writer.add_scalar(f'{writer_str}/LMLoss-train', lm_loss, idx)
@@ -185,8 +187,17 @@ def main(**kwargs):
                       pad=tgt_w2idx['<pad>'], sos=tgt_w2idx['<sos>'], 
                       dropout=kwargs['dropout'], utter_n_layer=kwargs['utter_n_layer'],
                       user_embed_size=kwargs['user_embed_size'])
-    elif kwargs['model'] == 'when2talk':
-        net = When2Talk(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'], 
+    elif kwargs['model'] == 'when2talk_GCN':
+        net = When2Talk_GCN(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'], 
+                        kwargs['utter_hidden'], kwargs['context_hidden'],
+                        kwargs['decoder_hidden'], kwargs['position_embed_size'],
+                        user_embed_size=kwargs['user_embed_size'],
+                        teach_force=kwargs['teach_force'], pad=tgt_w2idx['<pad>'],
+                        sos=tgt_w2idx['<sos>'], dropout=kwargs['dropout'], 
+                        utter_n_layer=kwargs['utter_n_layer'],
+                        contextrnn=kwargs['contextrnn'])
+    elif kwargs['model'] == 'when2talk_GAT':
+        net = When2Talk_GAT(len(src_w2idx), len(tgt_w2idx), kwargs['embed_size'], 
                         kwargs['utter_hidden'], kwargs['context_hidden'],
                         kwargs['decoder_hidden'], kwargs['position_embed_size'],
                         user_embed_size=kwargs['user_embed_size'],

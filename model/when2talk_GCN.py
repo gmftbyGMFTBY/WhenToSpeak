@@ -207,7 +207,7 @@ class Decoder_w2t(nn.Module):
         return output, hidden
     
     
-class When2Talk(nn.Module):
+class When2Talk_GCN(nn.Module):
     
     '''
     When2Talk model
@@ -221,7 +221,7 @@ class When2Talk(nn.Module):
                  context_hidden_size, decoder_hidden_size, position_embed_size, 
                  user_embed_size=10, teach_force=0.5, pad=0, sos=0, dropout=0.5,
                  utter_n_layer=1, bn=False, contextrnn=False):
-        super(When2Talk, self).__init__()
+        super(When2Talk_GCN, self).__init__()
         self.teach_force = teach_force
         self.output_size = output_size
         self.pad, self.sos = pad, sos

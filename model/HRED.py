@@ -79,11 +79,11 @@ class Context_encoder(nn.Module):
     input_size is 2 * utterance_hidden_size
     '''
 
-    def __init__(self, input_size, hidden_size, dropout=0.5):
+    def __init__(self, input_size, hidden_size, dropout=0.5, user_embed_size=10):
         super(Context_encoder, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.gru = nn.GRU(self.input_size, self.hidden_size)
+        self.gru = nn.GRU(self.input_size+user_embed_size, self.hidden_size)
         self.drop = nn.Dropout(p=dropout)
 
         self.init_weight()
@@ -92,13 +92,16 @@ class Context_encoder(nn.Module):
         init.orthogonal_(self.gru.weight_hh_l0)
         init.orthogonal_(self.gru.weight_ih_l0)
 
-    def forward(self, inpt, hidden=None):
+    def forward(self, inpt, user_embed, hidden=None):
         # inpt: [turn_len, batch, input_size]
         # hidden
         # if not hidden:
         #     hidden = torch.randn(1, inpt.shape[1], self.hidden_size)
         #     if torch.cuda.is_available():
         #         hidden = hidden.cuda()
+        
+        # cat
+        inpt = torch.cat([inpt, user_embed], 2)    # [turn_len, batch, inpt_size + user_embed]
         
         inpt = self.drop(inpt)
         output, hidden = self.gru(inpt, hidden)
@@ -180,14 +183,21 @@ class HRED(nn.Module):
         self.context_encoder = Context_encoder(utter_hidden, context_hidden, 
                                                dropout=dropout) 
         self.decoder = Decoder(output_size, embed_size, decoder_hidden, pretrained=pretrained)
+        
+        # user embedding, 10 embedding size
+        self.user_emb = nn.Embedding(2, 10)
 
-    def forward(self, src, tgt, lengths):
+    def forward(self, src, tgt, subatch, tubatch, lengths):
         # src: [turns, lengths, batch], tgt: [lengths, batch]
         # lengths: [turns, batch]
         turn_size, batch_size, maxlen = len(src), tgt.size(1), tgt.size(0)
         outputs = torch.zeros(maxlen, batch_size, self.output_size)
         if torch.cuda.is_available():
             outputs = outputs.cuda()
+            
+        # user embedding
+        subatch = self.user_emb(subatch)    # [turn_len, batch, 10]
+        tubatch = self.user_emb(tubatch)    # [batch, 10]
 
         # utterance encoding
         turns = []
@@ -199,7 +209,7 @@ class HRED(nn.Module):
 
         # context encoding
         # output: [seq, batch, hidden], [batch, hidden]
-        context_output, hidden = self.context_encoder(turns)
+        context_output, hidden = self.context_encoder(turns, subatch)
 
         # decoding
         # tgt = tgt.transpose(0, 1)        # [seq_len, batch]
@@ -218,13 +228,17 @@ class HRED(nn.Module):
         return outputs    # [maxlen, batch, vocab_size]
 
 
-    def predict(self, src, maxlen, lengths):
+    def predict(self, src, subatch, tubatch, maxlen, lengths):
         # predict for test dataset, return outputs: [maxlen, batch_size]
         # src: [turn, max_len, batch_size], lengths: [turn, batch_size]
         turn_size, batch_size = len(src), src[0].size(1)
         outputs = torch.zeros(maxlen, batch_size)
         if torch.cuda.is_available():
             outputs = outputs.cuda()
+            
+        # user embedding
+        subatch = self.user_emb(subatch)    # [turn_len, batch, 10]
+        tubatch = self.user_emb(tubatch)    # [batch, 10]
 
         turns = []
         for i in range(turn_size):
@@ -233,7 +247,7 @@ class HRED(nn.Module):
             turns.append(hidden)
         turns = torch.stack(turns)
 
-        context_output, hidden = self.context_encoder(turns)
+        context_output, hidden = self.context_encoder(turns, subatch)
         hidden = hidden.unsqueeze(0)
 
         output = torch.zeros(batch_size, dtype=torch.long).fill_(self.sos)

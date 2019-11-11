@@ -28,6 +28,7 @@ if __name__ == "__main__":
     # load the file data
     tp, fn, fp, tn = 0, 0, 0, 0
     rl, tl = False, False
+    silence_wrong, whole_counter = 0, 0
     with open(args.file) as f:
         ref, tgt = [], []
         for idx, line in enumerate(f.readlines()):
@@ -46,6 +47,8 @@ if __name__ == "__main__":
                 tgtline = line.replace("- tgt: ", "").replace('<sos>', '').replace('<eos>', '').strip()
                 tgtline = tgtline.replace("+ tgt: ", "").replace('<sos>', '').replace('<eos>', '').strip()
             elif idx % 4  == 3:
+                # counter
+                whole_counter += 1
                 # stat the tp, fn, fp, tn
                 if rl and tl:
                     tp += 1
@@ -60,9 +63,14 @@ if __name__ == "__main__":
                     if rl and tl:
                         ref.append(srcline.split())
                         tgt.append(tgtline.split())
+                    if (tl and 'silence' in tgtline) or (not tl and 'silence' not in tgtline):
+                        silence_wrong += 1
                 else:
-                    ref.append(srcline.split())
-                    tgt.append(tgtline.split())
+                    if 'silence' in tgtline or 'silence' in srcline:
+                        pass
+                    else:
+                        ref.append(srcline.split())
+                        tgt.append(tgtline.split())
                     
     # filter
     if args.cf == 0:
@@ -72,17 +80,19 @@ if __name__ == "__main__":
     else:
         print(f'[!] test ({len(ref)}|{round(len(ref) / (tp + fn), 4)}) examples')
         print(f'[!] true acc: {round(tp / (tp + fn), 4)}, false acc: {round(tn / (tn + fp), 4)}')
+        print(f'[!] silence error ratio: {round(silence_wrong / whole_counter, 4)}')
         
     assert len(ref) == len(tgt)
 
     # BLEU and embedding-based metric
-    bleu1_sum, bleu2_sum, bleu3_sum, bleu4_sum, embedding_average_sum, counter = 0, 0, 0, 0, 0, 0
+    bleu1_sum, bleu2_sum, bleu3_sum, bleu4_sum, embedding_average_sum, counter, ve_sum = 0, 0, 0, 0, 0, 0, 0
     for rr, cc in tqdm(zip(ref, tgt)):
         bleu1_sum += cal_BLEU([rr], cc, ngram=1)
         bleu2_sum += cal_BLEU([rr], cc, ngram=2)
         bleu3_sum += cal_BLEU([rr], cc, ngram=3)
         bleu4_sum += cal_BLEU([rr], cc, ngram=4)
         embedding_average_sum += cal_embedding_average(rr, cc, dic)
+        ve_sum += cal_vector_extrema(rr, cc, dic)
         counter += 1
 
     # Distinct-1, Distinct-2
@@ -93,8 +103,12 @@ if __name__ == "__main__":
     distinct_1, distinct_2 = cal_Distinct(candidates)
 
     print(f'Model {args.model} Result')
+    print(f'BLEU-1: {round(bleu1_sum / counter, 4)}')
+    print(f'BLEU-2: {round(bleu2_sum / counter, 4)}')
+    print(f'BLEU-3: {round(bleu3_sum / counter, 4)}')
     print(f'BLEU-4: {round(bleu4_sum / counter, 4)}')
     print(f'Embedding Average: {round(embedding_average_sum / counter, 4)}')
+    print(f'Vector Extrema: {round(ve_sum / counter, 4)}')
     print(f'Distinct-1: {round(distinct_1, 4)}; Distinct-2: {round(distinct_2, 4)}')
     # print(f'BERTScore: {round(bert_scores, 4)}')
     

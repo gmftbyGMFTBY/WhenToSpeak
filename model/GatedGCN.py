@@ -244,6 +244,8 @@ class GatedGCN(nn.Module):
     2. GCN context encoder
     3. (optional) RNN Context encoder
     4. Attention RNN decoder
+    
+    use the decision hidden to control the output result
     '''
     
     def __init__(self, input_size, output_size, embed_size, utter_hidden_size, 
@@ -277,7 +279,7 @@ class GatedGCN(nn.Module):
         self.decision_drop = nn.Dropout(p=dropout)
 
         # hidden project
-        self.hidden_proj = nn.Linear(context_hidden_size + user_embed_size, 
+        self.hidden_proj = nn.Linear(context_hidden_size + user_embed_size + int(context_hidden_size / 2), 
                                      decoder_hidden_size)
         self.hidden_drop = nn.Dropout(p=dropout)
         
@@ -315,14 +317,14 @@ class GatedGCN(nn.Module):
 
         # ========== decision, use the final hidden state above ==========
         decision_inpt = torch.cat([de_x[-1], tubatch], 1)     # [batch, hidden+10] 
-        de = self.decision_drop(torch.tanh(self.decision_1(decision_inpt)))
-        de = torch.sigmoid(self.decision_2(de)).squeeze(1)     # [batch]
+        de_ = self.decision_drop(torch.tanh(self.decision_1(decision_inpt)))
+        de = torch.sigmoid(self.decision_2(de_)).squeeze(1)     # [batch]
 
         # ========== decoding with the tgt_user & decision information ==========
         # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 1 + user_embed_size]
 
         # ========== hidden project ==========
-        hidden = torch.cat([ge_x[-1], tubatch], 1)    # [batch, hidden+user_embed]
+        hidden = torch.cat([ge_x[-1], tubatch, de_], 1)    # [batch, hidden+user_embed+de_]
         hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [batch, hidden]
 
         # decoding step
@@ -372,14 +374,14 @@ class GatedGCN(nn.Module):
 
         # decision
         decision_inpt = torch.cat([de_x[-1], tubatch], 1)     # [batch, hidden+user_embed_size]
-        de = self.decision_drop(torch.tanh(self.decision_1(decision_inpt))) 
-        de = torch.sigmoid(self.decision_2(de)).squeeze(1)     # [batch]
+        de_ = self.decision_drop(torch.tanh(self.decision_1(decision_inpt))) 
+        de = torch.sigmoid(self.decision_2(de_)).squeeze(1)     # [batch]
 
         # ========== decoding with tgt_user & decision information ==========
         # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)     # [batch, 1 + embed_size]
 
         # ========== hidden project ==========
-        hidden = torch.cat([ge_x[-1], tubatch], 1)    # [batch, hidden+user_embed]
+        hidden = torch.cat([ge_x[-1], tubatch, de_], 1)    # [batch, hidden+user_embed]
         hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [batch, hidden]
 
         hidden = hidden.unsqueeze(0)     # [1, batch, hidden]
