@@ -269,7 +269,7 @@ class GATRNN(nn.Module):
         self.decision_drop = nn.Dropout(p=dropout)
 
         # hidden project
-        self.hidden_proj = nn.Linear(context_hidden_size + user_embed_size+int(context_hidden_size / 2), 
+        self.hidden_proj = nn.Linear(context_hidden_size + user_embed_size, 
                                      decoder_hidden_size)
         self.hidden_drop = nn.Dropout(p=dropout)
         
@@ -315,7 +315,7 @@ class GATRNN(nn.Module):
         # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)    # [batch, 1 + user_embed_size]
 
         # ========== hidden project ==========
-        hidden = torch.cat([ge_x[-1], tubatch, de_], 1)    # [batch, hidden+user_embed]
+        hidden = torch.cat([ge_x[-1], tubatch], 1)    # [batch, hidden+user_embed]
         hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [batch, hidden]
 
         # decoding step
@@ -371,7 +371,7 @@ class GATRNN(nn.Module):
         # user_de = torch.cat([tubatch, de.unsqueeze(1)], 1)     # [batch, 1 + embed_size]
 
         # ========== hidden project ==========
-        hidden = torch.cat([ge_x[-1], tubatch, de_], 1)    # [batch, hidden+user_embed]
+        hidden = torch.cat([ge_x[-1], tubatch], 1)    # [batch, hidden+user_embed]
         hidden = self.hidden_drop(torch.tanh(self.hidden_proj(hidden)))  # [batch, hidden]
 
         hidden = hidden.unsqueeze(0)     # [1, batch, hidden]

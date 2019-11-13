@@ -187,20 +187,24 @@ def translate(**kwargs):
             # output: [maxlen, batch_size], de: [batch]
             if kwargs['cf'] == 1:
                 if kwargs['graph'] == 1:
-                    de, output = net(sbatch, tbatch, gbatch, subatch, tubatch, turn_lengths)
+                    de, output = net.predict(sbatch, gbatch, subatch, tubatch, 
+                                             kwargs['maxlen'], turn_lengths)
                 else:
-                    de, output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
+                    de, output = net.predict(sbatch, subatch, tubatch, 
+                                             kwargs['maxlen'], turn_lengths)
                 # fix de
                 de = (de > 0.5).long().cpu().tolist()
                 label = label.cpu().tolist()
             else:
                 if kwargs['model'] == 'hred':
-                    output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
+                    output = net.predict(sbatch, subatch, tubatch, 
+                                         kwargs['maxlen'], turn_lengths)
                 else:
-                    output = net(sbatch, tbatch, turn_lengths)
+                    output = net.predict(sbatch, 
+                                         kwargs['maxlen'], turn_lengths)
           
             # [turn, batch, output_size]
-            output = torch.max(output, 2)[1]
+            # output = torch.max(output, 2)[1]
             
             for i in range(batch_size):
                 ref = list(map(int, tbatch[:, i].tolist()))
@@ -242,15 +246,15 @@ def translate(**kwargs):
                     src = ' '.join(num2seq(src, src_idx2w))
 
                 # clean the ref and tgt
-                # ref = ref.replace('<1>', '').strip()
-                # ref = ref.replace('<0>', '').strip()
-                # ref = ref.replace('< 1 >', '').strip()
-                # ref = ref.replace('< 0 >', '').strip()
+                ref = ref.replace('<1>', '').strip()
+                ref = ref.replace('<0>', '').strip()
+                ref = ref.replace('< 1 >', '').strip()
+                ref = ref.replace('< 0 >', '').strip()
 
-                # tgt = tgt.replace('<1>', '').strip()
-                # tgt = tgt.replace('<0>', '').strip()
-                # tgt = tgt.replace('< 1 >', '').strip()
-                # tgt = tgt.replace('< 0 >', '').strip()
+                tgt = tgt.replace('<1>', '').strip()
+                tgt = tgt.replace('<0>', '').strip()
+                tgt = tgt.replace('< 1 >', '').strip()
+                tgt = tgt.replace('< 0 >', '').strip()
 
                 if kwargs['cf'] == 1:
                     # print the user information before the utterances
