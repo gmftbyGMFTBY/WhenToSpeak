@@ -51,7 +51,7 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
             else:
                 sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
         else:
-            sbatch, tbatch, turn_lengths = batch
+            sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
         
         batch_size = tbatch.shape[1]
         if batch_size == 1:
@@ -80,7 +80,7 @@ def train(writer, writer_str, train_iter, net, optimizer, vocab_size, pad,
             writer.add_scalar(f'{writer_str}/LMLoss-train', lm_loss, idx)
             writer.add_scalar(f'{writer_str}/TotalLoss-train', loss, idx)
         else:
-            output = net(sbatch, tbatch, turn_lengths)
+            output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
             loss = criterion(output[1:].view(-1, vocab_size),
                              tbatch[1:].contiguous().view(-1))
             # add train loss to the tensorfboard
@@ -113,7 +113,7 @@ def validation(data_iter, net, vocab_size, pad, cf=False, graph=False):
             else:
                 sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
         else:
-            sbatch, tbatch, turn_lengths = batch
+            sbatch, tbatch, subatch, tubatch, label, turn_lengths = batch
         batch_size = tbatch.shape[1]
         if batch_size == 1:
             continue
@@ -134,7 +134,7 @@ def validation(data_iter, net, vocab_size, pad, cf=False, graph=False):
             total_acc += torch.sum(de == label.long()).item()
             total_num += len(label)
         else:
-            output = net(sbatch, tbatch, turn_lengths)
+            output = net(sbatch, tbatch, subatch, tubatch, turn_lengths)
             loss = criterion(output[1:].view(-1, vocab_size),
                              tbatch[1:].contiguous().view(-1))
         pbar.set_description(f'batch {idx}, dev/test loss: {round(loss.item(), 4)}')
@@ -289,6 +289,10 @@ def main(**kwargs):
                 func = get_batch_data_flatten
             else:
                 func = get_batch_data_flatten_cf
+                           
+        if kwargs['model'] == 'hred':
+            func = get_batch_data_cf
+        
         if kwargs['graph'] == 0:
             train_iter = func(kwargs['src_train'], kwargs['tgt_train'],
                               kwargs['src_vocab'], kwargs['tgt_vocab'], 

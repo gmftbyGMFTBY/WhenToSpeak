@@ -90,11 +90,11 @@ class GatedGCNContext(nn.Module):
         self.threshold = threshold
         
         # GatedGCN
-        self.kernel_rnn1 = nn.GRUCell(size, size)
-        self.kernel_rnn2 = nn.GRUCell(size, size)
-        self.conv1 = My_DoubleGatedGCN(size, inpt_size, self.kernel_rnn1, self.kernel_rnn2)
-        self.conv2 = My_DoubleGatedGCN(size, inpt_size, self.kernel_rnn1, self.kernel_rnn2)
-        self.conv3 = My_DoubleGatedGCN(size, inpt_size, self.kernel_rnn1, self.kernel_rnn2)
+        # self.kernel_rnn1 = nn.GRUCell(size, size)
+        # self.kernel_rnn2 = nn.GRUCell(size, size)
+        self.conv1 = My_DoubleGatedGCN_unshared(size, inpt_size)
+        self.conv2 = My_DoubleGatedGCN_unshared(size, inpt_size)
+        self.conv3 = My_DoubleGatedGCN_unshared(size, inpt_size)
         self.bn1 = nn.BatchNorm1d(num_features=inpt_size)
         self.bn2 = nn.BatchNorm1d(num_features=inpt_size)
         self.bn3 = nn.BatchNorm1d(num_features=inpt_size)

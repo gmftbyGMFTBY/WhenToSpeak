@@ -18,6 +18,7 @@ import nltk
 from tqdm import tqdm
 import ipdb
 import heapq
+import random
 
 
 def load_pickle(path):
@@ -90,18 +91,14 @@ def create_the_graph(turns, weights=[1, 1], threshold=4, bidir=True):
     output: [2, num_edges], [num_edges]'''
     edges = {}
     s_w, u_w = weights
-    # sequential edges, (turn_len - 1)
+    # temporal information
     turn_len = len(turns)
     se, ue, pe = 0, 0, 0
-    for i in range(turn_len - 1):
-        edges[(i, i + 1)] = [s_w]
-        se += 1
+    # for i in range(turn_len - 1):
+    #     edges[(i, i + 1)] = [s_w]
+    #     se += 1
 
-    # add the self loop edge for each node
-    # for i in range(turn_len):
-    #     edges[(i, i)] = [1]
-
-    # user connected edges, fix the weight
+    # role information
     counter = {i:1 for i in range(1, turn_len)}    # add the counter
     for i in range(turn_len):
         for j in range(turn_len):
@@ -128,31 +125,6 @@ def create_the_graph(turns, weights=[1, 1], threshold=4, bidir=True):
                 
                 # sparse graph
                 pass
-
-    # BERT edges, correlation is measured by the BERT embedding, slow
-    '''
-    utterances = []
-    for user, utterance in turns:
-        utterance = utterance.replace('<0>', '').strip()
-        utterance = utterance.replace('<1>', '').strip()
-        if utterance:
-            utterances.append(utterance)
-        else:
-            utterances.append('<unk>')
-    utterances = bc.encode(utterances)    # [turn_len, 768]
-
-    for i in range(turn_len):
-        for j in range(turn_len):
-            if j > i:
-                utter1, utter2 = utterances[i], utterances[j]
-                weight = cos_similarity(utter1, utter2)
-                if weight >= threshold:
-                    if edges.get((i, j), None):
-                        edges[(i, j)].append(weight)
-                    else:
-                        edges[(i, j)] = [weight]
-                    pe += 1
-    '''
 
     # clean the edges
     e, w = [[], []], []

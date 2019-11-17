@@ -65,16 +65,11 @@ fi
 
 # batch_size of hierarchical
 if [ $hierarchical = 1 ]; then
-    batch_size=64
+    batch_size=48
     maxlen=50
 else
-    if [ $model = 'seq2seq' ] && [ $mode = 'translate' ]; then
-        batch_size=64
-        maxlen=100
-    else
-        batch_size=64
-        maxlen=50
-    fi
+    batch_size=64
+    maxlen=50
 fi
 
 # cf_check
@@ -107,17 +102,17 @@ elif [ $mode = 'stat' ]; then
     echo "[!] analyze the graph coverage information"
     python utils.py \
          --mode stat \
-         --graph ./processed/$dataset/train-graph.pkl \
+         --graph ./processed/$dataset/train-graph-23.pkl \
          --hops 3
          
     python utils.py \
          --mode stat \
-         --graph ./processed/$dataset/test-graph.pkl \
+         --graph ./processed/$dataset/test-graph-23.pkl \
          --hops 3
          
     python utils.py \
          --mode stat \
-         --graph ./processed/$dataset/dev-graph.pkl \
+         --graph ./processed/$dataset/dev-graph-23.pkl \
          --hops 3
 
 elif [ $mode = 'graph' ]; then
@@ -130,7 +125,7 @@ elif [ $mode = 'graph' ]; then
          --maxlen $maxlen \
          --src ./data/${dataset}-corpus/cf/src-train.pkl \
          --tgt ./data/${dataset}-corpus/cf/tgt-train.pkl \
-         --graph ./processed/$dataset/train-graph.pkl \
+         --graph ./processed/$dataset/train-graph-wotemp.pkl \
          --threshold 4 \
          --no-bidir
 
@@ -141,7 +136,7 @@ elif [ $mode = 'graph' ]; then
         --maxlen $maxlen \
         --src ./data/${dataset}-corpus/cf/src-test.pkl \
         --tgt ./data/${dataset}-corpus/cf/tgt-test.pkl \
-        --graph ./processed/$dataset/test-graph.pkl \
+        --graph ./processed/$dataset/test-graph-wotemp.pkl \
         --threshold 4 \
         --no-bidir
 
@@ -152,7 +147,7 @@ elif [ $mode = 'graph' ]; then
         --maxlen $maxlen \
         --src ./data/${dataset}-corpus/cf/src-dev.pkl \
         --tgt ./data/${dataset}-corpus/cf/tgt-dev.pkl \
-        --graph ./processed/$dataset/dev-graph.pkl \
+        --graph ./processed/$dataset/dev-graph-wotemp.pkl \
         --threshold 4 \
         --no-bidir
 
@@ -169,9 +164,9 @@ elif [ $mode = 'train' ]; then
         --tgt_test ./data/${dataset}-corpus/$cf_check/tgt-test.pkl \
         --src_dev ./data/${dataset}-corpus/$cf_check/src-dev.pkl \
         --tgt_dev ./data/${dataset}-corpus/$cf_check/tgt-dev.pkl \
-        --train_graph ./processed/$dataset/train-graph.pkl \
-        --test_graph ./processed/$dataset/test-graph.pkl \
-        --dev_graph ./processed/$dataset/dev-graph.pkl \
+        --train_graph ./processed/$dataset/train-graph-wotemp.pkl \
+        --test_graph ./processed/$dataset/test-graph-wotemp.pkl \
+        --dev_graph ./processed/$dataset/dev-graph-wotemp.pkl \
         --min_threshold 0 \
         --max_threshold $epoch \
         --lr 1e-4 \
@@ -206,7 +201,7 @@ elif [ $mode = 'translate' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
         --src_test ./data/${dataset}-corpus/$cf_check/src-test.pkl \
         --tgt_test ./data/${dataset}-corpus/$cf_check/tgt-test.pkl \
-        --test_graph ./processed/$dataset/test-graph.pkl \
+        --test_graph ./processed/$dataset/test-graph-wotemp.pkl \
         --min_threshold 0 \
         --max_threshold $epoch \
         --batch_size $batch_size \
@@ -251,7 +246,7 @@ elif [ $mode = 'curve' ]; then
         CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
             --src_test ./data/${dataset}-corpus/$cf_check/src-test.pkl \
             --tgt_test ./data/${dataset}-corpus/$cf_check/tgt-test.pkl \
-            --test_graph ./processed/$dataset/test-graph.pkl \
+            --test_graph ./processed/$dataset/test-graph-wotemp.pkl \
             --min_threshold $i \
             --max_threshold $i \
             --batch_size $batch_size \
