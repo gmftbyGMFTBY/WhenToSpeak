@@ -82,7 +82,27 @@ fi
 echo "========== $mode begin =========="
 
 
-if [ $mode = 'vocab' ]; then
+if [ $mode = 'chat' ]; then
+    python chat.py \
+        --model $model \
+        --dataset $dataset \
+        --src_vocab processed/$dataset/iptvocab.pkl \
+        --tgt_vocab processed/$dataset/optvocab.pkl \
+        --min_threshold 0 \
+        --max_threshold 30 \
+        --maxlen $maxlen \
+        --utter_hidden 500 \
+        --context_hidden 500 \
+        --decoder_hidden 500 \
+        --utter_n_layer 2 \
+        --seed 20 \
+        --embed_size 300 \
+        --user_embed_size 10 \
+        --position_embed_size 30 \
+        --contextrnn \
+        --context_threshold 2\
+    
+elif [ $mode = 'vocab' ]; then
     # generate the src vocab
     python utils.py \
         --mode vocab \

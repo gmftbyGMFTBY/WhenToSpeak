@@ -99,6 +99,12 @@ Generate performance curve
 ./run.sh curve dailydialog hred-cf 0
 ```
 
+Chat with the model
+
+```python
+./run.sh chat dailydialog GatedGCN 0
+```
+
 ## Experiment Result
 
 ```markdown

@@ -66,7 +66,10 @@ def load_best_model(dataset, model, net, min_threshold, max_threshold):
     best_loss, best_file, best_epoch = np.inf, None, -1
 
     for file in os.listdir(path):
-        _, val_loss, _, epoch = file.split('_')
+        try:
+            _, val_loss, _, epoch = file.split('_')
+        except:
+            continue 
         epoch = epoch.split('.')[0]
         val_loss, epoch = float(val_loss), int(epoch)
 
