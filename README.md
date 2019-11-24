@@ -15,6 +15,7 @@ Model architecture:
 3. numpy
 4. tqdm
 5. nltk: word tokenize and sent tokenize
+6. BERTScore 0.2.1
 
 ## Dataset
 Format:

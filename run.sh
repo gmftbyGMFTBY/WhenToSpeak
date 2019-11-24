@@ -184,9 +184,9 @@ elif [ $mode = 'train' ]; then
         --tgt_test ./data/${dataset}-corpus/$cf_check/tgt-test.pkl \
         --src_dev ./data/${dataset}-corpus/$cf_check/src-dev.pkl \
         --tgt_dev ./data/${dataset}-corpus/$cf_check/tgt-dev.pkl \
-        --train_graph ./processed/$dataset/train-graph-wotemp.pkl \
-        --test_graph ./processed/$dataset/test-graph-wotemp.pkl \
-        --dev_graph ./processed/$dataset/dev-graph-wotemp.pkl \
+        --train_graph ./processed/$dataset/train-graph.pkl \
+        --test_graph ./processed/$dataset/test-graph.pkl \
+        --dev_graph ./processed/$dataset/dev-graph.pkl \
         --min_threshold 0 \
         --max_threshold $epoch \
         --lr 1e-4 \
@@ -221,7 +221,7 @@ elif [ $mode = 'translate' ]; then
     CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
         --src_test ./data/${dataset}-corpus/$cf_check/src-test.pkl \
         --tgt_test ./data/${dataset}-corpus/$cf_check/tgt-test.pkl \
-        --test_graph ./processed/$dataset/test-graph-wotemp.pkl \
+        --test_graph ./processed/$dataset/test-graph.pkl \
         --min_threshold 0 \
         --max_threshold $epoch \
         --batch_size $batch_size \
@@ -266,7 +266,7 @@ elif [ $mode = 'curve' ]; then
         CUDA_VISIBLE_DEVICES="$cuda" python translate.py \
             --src_test ./data/${dataset}-corpus/$cf_check/src-test.pkl \
             --tgt_test ./data/${dataset}-corpus/$cf_check/tgt-test.pkl \
-            --test_graph ./processed/$dataset/test-graph-wotemp.pkl \
+            --test_graph ./processed/$dataset/test-graph.pkl \
             --min_threshold $i \
             --max_threshold $i \
             --batch_size $batch_size \

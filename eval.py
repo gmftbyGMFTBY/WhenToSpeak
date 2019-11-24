@@ -8,6 +8,8 @@ import random
 from utils import load_word_embedding
 import pickle
 from tqdm import tqdm
+from bert_score import score
+import ipdb
 
 
 if __name__ == "__main__":
@@ -102,16 +104,22 @@ if __name__ == "__main__":
         candidates.extend(line)
     # ipdb.set_trace()
     distinct_1, distinct_2 = cal_Distinct(candidates)
+    
+    # BERTScore
+    newrefs, newcands = [' '.join(i) for i in ref], [' '.join(i) for i in tgt]
+    # ipdb.set_trace()
+    _, _, bert_scores = score(newcands, newrefs, lang='en')
+    bert_sum = np.mean(bert_scores.tolist())
 
     print(f'Model {args.model} Result')
     print(f'BLEU-1: {round(bleu1_sum / counter, 4)}')
     print(f'BLEU-2: {round(bleu2_sum / counter, 4)}')
     print(f'BLEU-3: {round(bleu3_sum / counter, 4)}')
     print(f'BLEU-4: {round(bleu4_sum / counter, 4)}')
+    print(f'BERTScore: {round(bert_sum, 4)}')
     print(f'Embedding Average: {round(embedding_average_sum / counter, 4)}')
     print(f'Vector Extrema: {round(ve_sum / counter, 4)}')
     print(f'Distinct-1: {round(distinct_1, 4)}; Distinct-2: {round(distinct_2, 4)}')
-    # print(f'BERTScore: {round(bert_scores, 4)}')
     
     if args.cf == 1:
         macro_f1, micro_f1, acc = cal_acc_f1(tp, fn, fp, tn)
